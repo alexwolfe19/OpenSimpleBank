@@ -1,0 +1,49 @@
+{
+  "name": "opensimplebank",
+  "version": "1.0.0",
+  "description": "A small pet project, to create a federated independent banking system, mostly meant for game communities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "test",
+    "prepublish": "tsc",
+    "start": "npm run prepack && node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexwolfe19/OpenSimpleBank.git"
+  },
+  "keywords": [
+    "typescript",
+    "bank",
+    "games"
+  ],
+  "author": "Alex Wolfe <contact@amazedkeys.com> (https://amazedkeys.com/)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/alexwolfe19/OpenSimpleBank/issues"
+  },
+  "homepage": "https://github.com/alexwolfe19/OpenSimpleBank#readme",
+  "dependencies": {
+    "@prisma/client": "^4.16.2",
+    "bcrypt": "^5.1.0",
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.18.2",
+    "hat": "^0.0.3",
+    "uuid": "^9.0.0",
+    "winston": "^3.10.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.0",
+    "@types/cookie-parser": "^1.4.3",
+    "@types/express": "^4.17.17",
+    "@types/uuid": "^9.0.2",
+    "@types/winston": "^2.4.4",
+    "@typescript-eslint/eslint-plugin": "^6.2.1",
+    "@typescript-eslint/parser": "^6.2.1",
+    "@types/body-parser": "^1.19.2",
+    "eslint": "^8.46.0",
+    "prisma": "^4.1.1"
+  }
+}
