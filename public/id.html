@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>OSB - Identity</title>
+    </head>
+    <body>
+        <div class="box">
+            <h3>User Information</h3>
+            <p id="status"></p>
+            <form id="identity">
+                <p>Username: <input name="username"></p>
+                <p>Password: <input name="password"></p>
+            </form>
+            <p>
+                <button onclick="login()">Login</button>
+                <button onclick="signup()">Signup</button>
+            </p>
+        </div>
+    </body>
+
+    <script>
+        function getInputs() {
+            const form = document.getElementById('identity');
+            const username = form.querySelector('[name=username]').value;
+            const password = form.querySelector('[name=password]').value;
+            return {username:username, password:password}
+        }
+
+        async function makeRequest(path) {
+            const inputs = getInputs();
+            const request = new Request(`/api/${path}`, {
+                method: 'POST',
+                body: JSON.stringify(inputs),
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+            const reply = await fetch(request);
+            if (reply.status == 500) throw new Error(reply);
+            return reply;
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').innerText = message;
+        }
+
+        function login() {
+            makeRequest('account/login/').then(() => {
+                updateStatus("Logged in!");
+            }).catch(() => {
+                updateStatus("Failed to login!");
+            });
+        }
+
+        function signup() {
+            makeRequest('account/create/').then(() => {
+                updateStatus("Account created");
+            }).catch(() => {
+                updateStatus("Failed to signup!");
+            });
+        }
+
+    </script>
+
+</html>

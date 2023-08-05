@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model UserAccount {
+  id     Int     @id @default(autoincrement())
+  username  String  @unique
+  email String?
+  passwordHash  String
+
+  // Virtual
+  WalletLinks WalletRelation[]
+  Sessions UserSessions[]
+}
+
+model UserSessions {
+  id     Int     @id @default(autoincrement())
+  userId Int
+  identity String @unique
+  sessionCreatedOn  DateTime @default(now())
+  sessionExpiresOn  DateTime?
+  valid Boolean @default(true)
+  // Virtual
+  Account UserAccount @relation(fields: [userId], references: [id])
+}
+
+model WalletRelation {
+  id     Int     @id @default(autoincrement())
+  accountId Int
+  walletKey String
+  mayViewBalance              Boolean   @default(true)
+  mayViewTransactionHistory   Boolean   @default(true)
+  mayAuthorNewTransactions    Boolean   @default(true)
+  mayAddNewUser               Boolean   @default(true)
+  mayRemoveUser               Boolean   @default(true)
+  mayDeleteAccount            Boolean   @default(true)
+  canRelationBeDeleted        Boolean   @default(true)
+  
+  // Virtual
+  Account UserAccount @relation(fields: [accountId], references: [id])
+  Wallet Wallet @relation(fields: [walletKey], references: [id])
+}
+
+model Wallet {
+  id  String       @id @default(uuid())
+  balance Int @default(0)
+  masterId Int
+
+  // Virtual
+  Debits Transaction[] @relation("debits")
+  Credits Transaction[] @relation("credits")
+  Owners WalletRelation[]
+}
+
+model Transaction {
+  id  String       @id @default(uuid())
+  debtorId String?
+  creditorId String?
+  value Int @default(0)
+  partialValue Int?
+  status TransactionStatus @default(CREATED)
+  createdOn DateTime @default(now())
+  lastUpdatedOn DateTime  @default(now())
+  debtorHeadline String?
+  debtorDescription String?
+
+  // Virtual
+  DebtorWallet Wallet? @relation(fields: [debtorId], references: [id], "debits")
+  CreditorWallet Wallet? @relation(fields: [creditorId], references: [id], "credits")
+}
+
+enum TransactionStatus {
+  CREATED
+  EXPIRED
+  PROCESS_PENDING
+  PROCESSED
+  PROCESS_FAILED
+  REFUND_PENDING
+  REFUND_PARTIAL
+  REFUNDED
+  REFUND_FAILED
+  CHARGED_BACK
+  PARTIAL_CHARGE_BACK
+}
