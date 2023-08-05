@@ -20,6 +20,7 @@ model UserAccount {
   // Virtual
   WalletLinks WalletRelation[]
   Sessions UserSessions[]
+  Currencies Currency[]
 }
 
 model UserSessions {
@@ -54,11 +55,13 @@ model Wallet {
   id  String       @id @default(uuid())
   balance Int @default(0)
   masterId Int
+  currencyId Int
 
   // Virtual
   Debits Transaction[] @relation("debits")
   Credits Transaction[] @relation("credits")
   Owners WalletRelation[]
+  Currency Currency @relation(fields: [currencyId], references: [id])
 }
 
 model Transaction {
@@ -90,4 +93,22 @@ enum TransactionStatus {
   REFUND_FAILED
   CHARGED_BACK
   PARTIAL_CHARGE_BACK
+}
+
+model Currency {
+  id     Int     @id @default(autoincrement())
+  ownerId Int
+
+  currencySign String
+  groupingSize Int
+  decimalCount Int
+  shortName String
+  longName String
+
+  volume Int  @default(0)
+  liquidity Int  @default(0)
+
+  // Owner
+  Owner UserAccount @relation(fields: [ownerId], references: [id])
+  WalletsUsing Wallet[]
 }

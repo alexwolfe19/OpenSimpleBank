@@ -15,10 +15,12 @@ app.use(RestrictedAccessMiddlewear);
 app.post('/create/', async (req, res) => {
     console.log('HE WANTS A WALLET!');
     const userid: number = res.locals.userid;
+    const currencyId: number = req.body.currency_id;
     
     const result = await dbcon.wallet.create({data:{
         balance: 10,
         masterId: userid,
+        currencyId: currencyId,
         Owners: { create: { accountId: userid } }
     }});
 

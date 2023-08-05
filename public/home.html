@@ -150,7 +150,7 @@
         }
 
         makeGETRequest("account/is-logged-in").then((r) => {
-            if (r.status != 200) console.warn("POOP!");
+            if (r.status != 200) window.location = "/id.html"
             load();
         }).catch((e) => {
             console.error(e);
