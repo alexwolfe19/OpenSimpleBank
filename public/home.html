@@ -20,7 +20,7 @@
                         <th>Actions</th>
                     </tr>
                 </table>
-                <button onclick="makeNewWallet()">New Wallet!</button>
+                <a href="/currencies.html">Currency list</a>
             </div>
             <div>
                 <h3>Transfer Panel</h3>
@@ -83,12 +83,6 @@
             });
             const reply = await fetch(request);
             return reply;
-        }
-
-        function makeNewWallet() {
-            makePOSTRequest('wallet/create/').then(() => {
-                window.location.reload();
-            })
         }
 
         function makeActionColumn(address) {

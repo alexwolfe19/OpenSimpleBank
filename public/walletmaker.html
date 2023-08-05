@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>OSB - Wallet Creator</title>
+
+        <script src="/common/utils.js"></script>
+    </head>
+    <body>
+        <h1>Wallet Creator</h1>
+        <div class="wm-form">
+            <table>
+                <tr>
+                    <td>Currency Identifier</td>
+                    <td><input id="currencyid"></td>
+                </tr>
+                <tr>
+                    <td>Nickname</td>
+                    <td><input id="nickname"></td>
+                </tr>
+                <tr>
+                    <td><button onclick="makeNewWallet()">Create Wallet</button></td>
+                </tr>
+            </table>
+        </div>
+    </body>
+
+    <script>
+        function makeNewWallet() {
+            makePOSTRequest('wallet/create/', {
+                nickname: document.getElementById('nickname').value,
+                currency_id: document.getElementById('currencyid').value,
+            }).then(reply => {
+                if (reply.status == 200) return window.location = '/home.html';
+                alert("Failed to create wallet!");
+            })
+        }
+
+        validateIdentity().then(valid => {
+            if (!valid) return window.location = "/id.html?r=/currencies.html";
+            // Begin loading everything!
+            let params = new URLSearchParams(window.location.search.slice(1));
+
+            let currencykey = params.get("currency");
+            if (currencykey == undefined || currencykey == null) {
+                console.warn("No currency given");
+            } else {
+                document.getElementById('currencyid').value = currencykey;
+            }
+
+        });
+
+    </script>
+</html>

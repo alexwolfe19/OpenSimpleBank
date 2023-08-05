@@ -13,7 +13,7 @@
                 <h3>Currencies</h3>
                 <table id="wallets">
                     <tr>
-                        <th>#</th>
+                        <th>Address</th>
                         <th>Name</th>
                         <th>Short Name</th>
                         <th>Owner</th>
@@ -107,8 +107,7 @@
             const selectAsSourceButton = document.createElement('button');
             selectAsSourceButton.innerText = "Make Wallet";
             selectAsSourceButton.onclick = () => {
-                const sourcelist = document.getElementById('sources');
-                sourcelist.value = address;
+                window.open(`/walletmaker.html?currency=${address}`, '_blank');
             }
             root.appendChild(selectAsSourceButton);
 
@@ -125,14 +124,14 @@
                 for (var count=0; count<list.length; count++) {
                     const currency = list[count];
                     const row = document.createElement('tr');
-                    const index_col = document.createElement('td');
+                    const address_col = document.createElement('td');
                     const name_col = document.createElement('td');
                     const short_name_col = document.createElement('td');
                     const owner_name_col = document.createElement('td');
                     const utilisation_col = document.createElement('td');
                     const actcol = makeActionColumn(currency["id"]);
 
-                    index_col.innerText = count + 1;
+                    address_col.innerText = currency["id"];
                     name_col.innerText = currency["longName"];
                     short_name_col.innerText = currency["shortName"];
                     owner_name_col.innerText = currency["Owner"]["username"];
@@ -143,7 +142,7 @@
 
                     utilisation_col.innerText = `${liq}/${vol} (${per}%)`;
 
-                    row.appendChild(index_col);
+                    row.appendChild(address_col);
                     row.appendChild(name_col);
                     row.appendChild(short_name_col);
                     row.appendChild(owner_name_col);

@@ -55,7 +55,8 @@ model Wallet {
   id  String       @id @default(uuid())
   balance Int @default(0)
   masterId Int
-  currencyId Int
+  currencyId String
+  nickname String?
 
   // Virtual
   Debits Transaction[] @relation("debits")
@@ -96,7 +97,7 @@ enum TransactionStatus {
 }
 
 model Currency {
-  id     Int     @id @default(autoincrement())
+  id  String       @id @default(uuid())
   ownerId Int
 
   currencySign String
