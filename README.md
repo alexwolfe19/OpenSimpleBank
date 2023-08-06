@@ -4,6 +4,8 @@ Welcome to **OpenSimpleBank**, a pet project of mine, inspired by an old project
 ## Getting Started
 Currently, there isn't much to be done here. I'm *very* slowly working on the project at the moment for fun when the mood strikes. This is a TypeScript project, to be ran in NodeJS (or similar desktop enviroment, I suppose, but not tested!) with Prisma for the ORM. Shouldn't need any fancy setup besides the `.env` file with database information and such.
 
+The UI and such are mostly just there for my debugging, UI will be the last thing I end up doing, most likely.
+
 ### Enviroment Configuration
 
 ## Road Map
