@@ -119,14 +119,16 @@
                     const balcol = document.createElement('td');
                     const actcol = makeActionColumn(wallet["id"]);
 
+                    const label_text = wallet["nickname"] || `Unnamed Wallet`;
+
                     const source_option = document.createElement("option");
                     source_option.value = wallet["id"];
-                    source_option.innerText = `Unnamed Wallet ${count + 1}`;
+                    source_option.innerText = label_text;
                     sourcelist.appendChild(source_option);
 
                     ncol.innerText = count + 1;
                     addr.innerText = wallet["id"];
-                    label.innerText = `Unnamed Wallet ${count + 1}`;
+                    label.innerText = label_text;
                     balcol.innerText = wallet["balance"];
 
                     row.appendChild(ncol);

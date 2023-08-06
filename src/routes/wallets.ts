@@ -51,7 +51,8 @@ app.get('/list/', async (req, res) => {
         },
         select: {
             id: true,
-            balance: true
+            balance: true,
+            nickname: true
         }
     });
 

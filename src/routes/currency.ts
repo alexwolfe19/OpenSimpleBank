@@ -3,6 +3,8 @@ import { Router } from 'express';
 // import logger from '../logger';
 import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { PrismaClient } from '@prisma/client';
+import { createCurrency } from '../utils/currency';
+import { assert } from '../utils/general';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -12,45 +14,24 @@ const currency_route = Router();
 
 currency_route.use(RestrictedAccessMiddlewear);
 
-function assert<T>(value: T, message?: string): T {
-    if (value == null || value == undefined) throw new Error(message);
-    return value;
-}
-
-function safelyAssert<T>(value: T, defval: T): T {
-    if (value == null || value == undefined) return defval;
-    return value;
-}
-
 currency_route.post('/create/', async (req, res) => {
     console.log('Creating a new currency!');
     const userid: number =  assert(res.locals.userid, 'Unable to get user ID!');
     const signSymbol =      assert(req.body.symbol, 'Unable to get symbol!');
-    const grouping =        Number(safelyAssert(req.body.grouping, 3));
-    const decimalCount =    Number(safelyAssert(req.body.decimals, 0));
+    const grouping =        Number(req.body.grouping);
+    const decimalCount =    Number(req.body.decimals);
     const shortName =       assert(req.body.short_name, 'Unable to get short name');
     const longName =        assert(req.body.long_name, 'Unable to get long name');
     const volume =          Number(assert(req.body.volume, 'Unable to get volume'));
 
-    // 2. Validate inputs
-
-    const result = await dbcon.currency.create({data:{
-        ownerId: userid,
-        currencySign: signSymbol,
-        groupingSize: grouping,
-        decimalCount: decimalCount,
-        shortName: shortName,
-        longName: longName,
-        volume: volume,
-        liquidity: 0
-    }});
-
-    if (result == null || result == undefined) {
-        console.log('Failed to create currency!');
-        res.status(500).json({message: 'Failed to create currency!'});
-    } else {
-        console.log('Currency created!');
-        res.status(200).send('Currency created!');
+    try {
+        const currencyid = await createCurrency(userid, signSymbol, shortName, longName, grouping, decimalCount, volume);
+        res.status(200).json({
+            message: 'Currency created!',
+            refrence: currencyid
+        });
+    } catch (e) {
+        console.error(e);
     }
 });
 

@@ -2,22 +2,12 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { InvalidLoginCredentialsError, MissingRequiredParametersError, NoSuchUserError, UnknownError } from './errors';
 
 // Load some config
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 10;
 const TOKEN_LIFESPAN = Number(process.env.TOKEN_LIFESPAN) || 60*60*60*1000; // One hour, by default
 
-// Errors
-class InvalidLoginCredentialsError extends Error {
-    constructor(username: string, password: string) {
-        super(`("${username}", "${password})`);
-    }
-}
-class NoSuchUserError extends Error {}
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-class MissingRequiredParametersError extends Error {}
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-class UnknownError extends Error {}
 
 // Get database connection
 const dbcon = new PrismaClient();
