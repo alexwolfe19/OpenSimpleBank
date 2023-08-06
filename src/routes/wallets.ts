@@ -3,6 +3,7 @@ import { Router } from 'express';
 // import logger from '../logger';
 import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { PrismaClient } from '@prisma/client';
+import { assert } from '../utils/general';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -14,8 +15,8 @@ app.use(RestrictedAccessMiddlewear);
 
 app.post('/create/', async (req, res) => {
     console.log('HE WANTS A WALLET!');
-    const userid: number = res.locals.userid;
-    const currencyId: string = req.body.currency_id;
+    const userid: number = assert(res.locals.userid, 'No userId!');
+    const currencyId: string = assert(req.body.currency_id, 'No currencyId!');
     const nickname: string = req.body.nickname;
     
     const result = await dbcon.wallet.create({data:{

@@ -1,8 +1,9 @@
 // Imports
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { InvalidLoginCredentialsError, MissingRequiredParametersError, NoSuchUserError, UnknownError } from './errors';
+import { InvalidLoginCredentialsError, InvalidTokenSecret, MissingRequiredParametersError, NoSuchTokenError, NoSuchUserError } from './errors';
+import { isnull } from './general';
 
 // Load some config
 const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 10;
@@ -12,36 +13,52 @@ const TOKEN_LIFESPAN = Number(process.env.TOKEN_LIFESPAN) || 60*60*60*1000; // O
 // Get database connection
 const dbcon = new PrismaClient();
 
+// Types
+const fatSession = Prisma.validator<Prisma.SessionArgs>()({
+    include: { Token: true, Data: true }
+});
+type FatSession = Prisma.SessionGetPayload<typeof fatSession>
+
 // Interfaces
-interface UserSessionData {
-    identity: string
-    creation: Date,
-    expires: Date
-}
+type Nothing = undefined | null;
+type UserSessionData = [secret: string, issued: Date, expires: Date];
+type TokenData = [identity: string, secret: string, issued: Date, expires: Date | Nothing];
 
 // Internals
-async function storeToken(userid: number, token: UserSessionData) {
+async function storeSession(key: string, createdOn: Date, expiredOn?: Date, userid?: number) {
     const payload = {
-        userId: userid,
-        identity: token.identity,
-        sessionCreatedOn: token.creation,
-        sessionExpiresOn: token.expires,
+        key: key,
+        createdOn: createdOn,
+        expiredOn: expiredOn,
+        userId: userid
     };
-    await dbcon.userSessions.create({data: payload});
+    await dbcon.session.create({data: payload});
 }
 
-async function synthNewToken(): Promise<UserSessionData> {
+export async function getSessionData(secret: string) {
+    return await dbcon.sessionStorageEntry.findMany({ where: {sessionKey: secret } });
+}
+
+export async function getSessionVariable(secret: string, key: string) {
+    return await dbcon.sessionStorageEntry.findFirst({ where: {sessionKey: secret, key: key } });
+}
+
+export async function setSessionVariable(secret: string, key: string, value: string) {
+    await dbcon.sessionStorageEntry.upsert({ 
+        where: {sessionKey_key: { sessionKey: secret, key: key }},
+        create: { sessionKey: secret, key: key, body: value },
+        update: { body: value }
+    });
+}
+
+async function synthNewSession(): Promise<[string, Date, Date]> {
     const identity = uuidv4();
     const timestamp = new Date(Date.now());
     const expires_on = new Date(timestamp.getTime() + TOKEN_LIFESPAN);
-    return {
-        identity: identity,
-        creation: timestamp,
-        expires: expires_on
-    };
+    return [identity, timestamp, expires_on];
 }
 
-async function createUser(username: string, password: string, email: string | undefined) {
+export async function createUser(username: string, password: string, email: string | undefined) {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const account = await dbcon.userAccount.create({
         data: { username: username, passwordHash: passwordHash, email: email }
@@ -50,7 +67,7 @@ async function createUser(username: string, password: string, email: string | un
     return account;
 }
 
-async function validateUserLogin(username: string, password: string): Promise<number> {
+export async function validateUserLogin(username: string, password: string): Promise<number> {
     const potentialUser = await dbcon.userAccount.findUnique({ where:{ username: username }});
 
     // Check if we couldn't find anyone!
@@ -62,19 +79,58 @@ async function validateUserLogin(username: string, password: string): Promise<nu
     else throw new InvalidLoginCredentialsError(potentialUser!.username, potentialUser!.passwordHash);
 }
 
-async function generateUserSession(accountid: number) : Promise<UserSessionData> {
-    const token = await synthNewToken();
-    await storeToken(accountid, token);
-    return token;
+export async function generateSession(accountid?: number) : Promise<UserSessionData> {
+    const [token, issuedOn, expiredOn] = await synthNewSession();
+    await storeSession(token, issuedOn, expiredOn, accountid);
+    return [token, issuedOn, expiredOn];
 }
 
-async function validateUserSession(identity: string) : Promise<{valid: boolean, userid: number | undefined}> {
-    const session = await dbcon.userSessions.findUnique({
-        where: { identity: identity }
+export async function validateSession(secret: string) : Promise<{valid: boolean, session?: FatSession}> {
+    const session = await dbcon.session.findUnique({
+        where: { key: secret },
+        select: { Token: true, revoked: true, Data: true, id: true, key: true, userId: true }
     });
-    if (session == null || session == undefined) return {valid: false, userid: undefined};
-    if (!session.valid) return {valid: false, userid: undefined};
-    return {valid: true, userid: session.userId};
+    if (session == null || session == undefined) return {valid: false};
+    if (session.revoked) return {valid: false};
+    return {valid: true, session: session as FatSession};
 }
 
-export { createUser, validateUserLogin, generateUserSession, synthNewToken, storeToken, validateUserSession, UnknownError, NoSuchUserError, InvalidLoginCredentialsError, MissingRequiredParametersError };
+export async function generateToken(userId?: number, applicationId?: number, expires: boolean = true) : Promise<TokenData> {
+    const secret = uuidv4();
+    const secret_hash = await bcrypt.hash(secret, SALT_ROUNDS);
+
+    if (isnull(userId) && isnull(applicationId)) {
+        // Nothing provided
+        throw new MissingRequiredParametersError();
+    }
+
+    const timestamp = new Date(Date.now());
+    const expires_on = (expires) ? new Date(timestamp.getTime() + TOKEN_LIFESPAN) : undefined;
+
+    const token = await dbcon.token.create({
+        data: {
+            secretHash: secret_hash,
+            userId: userId,
+            applicationId: applicationId,
+            expiresOn: expires_on
+        }
+    });
+
+    return [token.identity, secret, token.createdOn, token.expiresOn];
+}
+
+export enum TokenState {
+    Generated = 0,
+    Authenticated = 1,
+    Revoked = -1
+}
+
+export async function validateToken(identity: string, secret: string) : Promise<TokenState> {
+    const token = await dbcon.token.findUnique({ where: { identity: identity }, select: { revoked: true, authenticated: true, secretHash: true } });
+    if (isnull(token)) throw new NoSuchTokenError();
+    const secretValid = await bcrypt.compare(secret, token!.secretHash);
+    if (!secretValid) throw new InvalidTokenSecret();
+    if (token!.revoked) return TokenState.Revoked;
+    else if (token!.authenticated) return TokenState.Authenticated;
+    else return TokenState.Generated;
+}

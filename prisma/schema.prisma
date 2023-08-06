@@ -10,75 +10,166 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
+// Identity Stuff
 model UserAccount {
-  id     Int     @id @default(autoincrement())
-  username  String  @unique
-  email String?
-  passwordHash  String
+  id           Int     @id @default(autoincrement())
+  username     String  @unique
+  email        String?
+  passwordHash String
 
   // Virtual
   WalletLinks WalletRelation[]
-  Sessions UserSessions[]
-  Currencies Currency[]
+  Currencies  Currency[]
+  Tokens Token[]
+  Sessions Session[]
 }
 
-model UserSessions {
-  id     Int     @id @default(autoincrement())
-  userId Int
-  identity String @unique
-  sessionCreatedOn  DateTime @default(now())
-  sessionExpiresOn  DateTime?
-  valid Boolean @default(true)
+// Sessions - They're used for tracking/identitifcation IN THE BROWSER! Like tokens, but lame.
+model Session {
+  id               Int         @id @default(autoincrement())
+  key           String      @unique
+  tokenId          String?
+  userId          Int?
+
+  createdOn       DateTime @default(now())
+  expiredOn       DateTime?
+
+  revoked Boolean @default(false)
+
   // Virtual
-  Account UserAccount @relation(fields: [userId], references: [id])
+  Token Token? @relation(fields: [tokenId], references: [identity])
+  User UserAccount? @relation(fields: [userId], references: [id])
+  Data SessionStorageEntry[]
+  HTTPRecords HTTPLogEntry[]
 }
 
+model SessionStorageEntry {
+  sessionKey String
+  key String
+  body Json? 
+
+  @@unique([sessionKey, key])
+
+  // Virtual
+  Session Session @relation(fields: [sessionKey], references: [key])
+}
+
+model Token {
+  identity         String  @id @default(uuid())
+  userId      Int?
+  applicationId Int?
+
+  secretHash           String
+
+  createdOn DateTime    @default(now())
+  expiresOn DateTime?
+
+  revoked          Boolean     @default(false)
+  authenticated    Boolean     @default(false)
+
+  // Virtual
+  User UserAccount? @relation(fields: [userId], references: [id])
+  Application Application? @relation(fields: [applicationId], references: [id])
+  Sessions Session[]
+}
+
+model Application {
+  id       Int @id @default(autoincrement())
+  masterId Int
+
+  // Virtual
+  Memberships ApplicationMembership[]
+  Tokens Token[]
+}
+
+model ApplicationMembership {
+  applicationId Int
+  userId        Int
+
+  @@unique([applicationId, userId])
+
+  // Virtual
+  Application   Application @relation(fields: [applicationId], references: [id])
+}
+
+// Log Stuff
+enum LogLevel {
+  Info
+  Debug
+  Log
+  Warn
+  Error
+  Fatal
+}
+
+model HTTPLogEntry {
+  id       Int @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  actorToken String?
+
+  remoteAddress String?
+  path String?
+
+  // Virtual
+  Session Session? @relation(fields: [actorToken], references: [key])
+}
+
+model APIEventLog {
+  id       Int @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  identity  String?
+  module String? @default("general")
+  eventType String?
+  eventData Json?
+  success Boolean @default(true)
+}
+
+// Finance Stuff
 model WalletRelation {
-  id     Int     @id @default(autoincrement())
-  accountId Int
-  walletKey String
-  mayViewBalance              Boolean   @default(true)
-  mayViewTransactionHistory   Boolean   @default(true)
-  mayAuthorNewTransactions    Boolean   @default(true)
-  mayAddNewUser               Boolean   @default(true)
-  mayRemoveUser               Boolean   @default(true)
-  mayDeleteAccount            Boolean   @default(true)
-  canRelationBeDeleted        Boolean   @default(true)
-  
+  id                        Int     @id @default(autoincrement())
+  accountId                 Int
+  walletKey                 String
+  mayViewBalance            Boolean @default(true)
+  mayViewTransactionHistory Boolean @default(true)
+  mayAuthorNewTransactions  Boolean @default(true)
+  mayAddNewUser             Boolean @default(true)
+  mayRemoveUser             Boolean @default(true)
+  mayDeleteAccount          Boolean @default(true)
+  canRelationBeDeleted      Boolean @default(true)
+
   // Virtual
   Account UserAccount @relation(fields: [accountId], references: [id])
-  Wallet Wallet @relation(fields: [walletKey], references: [id])
+  Wallet  Wallet      @relation(fields: [walletKey], references: [id])
 }
 
 model Wallet {
-  id  String       @id @default(uuid())
-  balance Int @default(0)
-  masterId Int
+  id         String  @id @default(uuid())
+  balance    Int     @default(0)
+  masterId   Int
   currencyId String
-  nickname String?
+  nickname   String?
 
   // Virtual
-  Debits Transaction[] @relation("debits")
-  Credits Transaction[] @relation("credits")
-  Owners WalletRelation[]
-  Currency Currency @relation(fields: [currencyId], references: [id])
+  Debits   Transaction[]    @relation("debits")
+  Credits  Transaction[]    @relation("credits")
+  Owners   WalletRelation[]
+  Currency Currency         @relation(fields: [currencyId], references: [id])
 }
 
 model Transaction {
-  id  String       @id @default(uuid())
-  debtorId String?
-  creditorId String?
-  value Int @default(0)
-  partialValue Int?
-  status TransactionStatus @default(CREATED)
-  createdOn DateTime @default(now())
-  lastUpdatedOn DateTime  @default(now())
-  debtorHeadline String?
+  id                String            @id @default(uuid())
+  debtorId          String?
+  creditorId        String?
+  value             Int               @default(0)
+  partialValue      Int?
+  status            TransactionStatus @default(CREATED)
+  createdOn         DateTime          @default(now())
+  lastUpdatedOn     DateTime          @default(now())
+  debtorHeadline    String?
   debtorDescription String?
 
   // Virtual
-  DebtorWallet Wallet? @relation(fields: [debtorId], references: [id], "debits")
+  DebtorWallet   Wallet? @relation(fields: [debtorId], references: [id], "debits")
   CreditorWallet Wallet? @relation(fields: [creditorId], references: [id], "credits")
 }
 
@@ -97,19 +188,19 @@ enum TransactionStatus {
 }
 
 model Currency {
-  id  String       @id @default(uuid())
+  id      String @id @default(uuid())
   ownerId Int
 
   currencySign String
   groupingSize Int
   decimalCount Int
-  shortName String
-  longName String
+  shortName    String
+  longName     String
 
-  volume Int  @default(0)
-  liquidity Int  @default(0)
+  volume    Int @default(0)
+  liquidity Int @default(0)
 
   // Owner
-  Owner UserAccount @relation(fields: [ownerId], references: [id])
+  Owner        UserAccount @relation(fields: [ownerId], references: [id])
   WalletsUsing Wallet[]
 }

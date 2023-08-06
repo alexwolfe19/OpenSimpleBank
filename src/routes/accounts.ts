@@ -1,8 +1,9 @@
 // Imports
 import { Router } from 'express';
 import logger from '../logger';
-import { createUser, validateUserLogin, generateUserSession, NoSuchUserError, InvalidLoginCredentialsError } from '../utils/identity';
+import { createUser, generateSession, validateUserLogin } from '../utils/identity';
 import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
+import { InvalidLoginCredentialsError, NoSuchUserError } from '../utils/errors';
 
 // Create our apps
 const app = Router();
@@ -35,10 +36,11 @@ app.post('/login/', async (req, res) => {
 
     validateUserLogin(username, password).then((id) => {
         logger.debug('Login validated');
-        generateUserSession(id).then((token) => {
+        generateSession(id).then((token) => {
+            const [ identity,,expires ] = token;
             logger.debug('User session generated');
             res.status(200)
-                .cookie('user-session', token.identity, { httpOnly: true, expires: token.expires })
+                .cookie('user-session', identity, { httpOnly: true, expires: expires })
                 .json({message: 'Login successful!'});
         }).catch((e) => {
             logger.warn('Failed to generate user session!');

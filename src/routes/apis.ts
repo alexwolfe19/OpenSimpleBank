@@ -9,6 +9,7 @@ import accounts_route from './accounts';
 import wallets_route from './wallets';
 import transaction_route from './transactions';
 import currency_route from './currency';
+import oauth2_route from './oauth2';
 
 // Create our apps
 const api_route = Router();
@@ -29,5 +30,6 @@ api_route.use('/account', accounts_route);
 api_route.use('/wallet/', wallets_route);
 api_route.use('/transaction/', transaction_route);
 api_route.use('/currency/', currency_route);
+api_route.use('/oauth2/', oauth2_route);
 
 export default api_route;

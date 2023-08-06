@@ -25,3 +25,6 @@ export class BalanceInsufficentError extends Error {}
 export class NoSuchUserError extends Error {}
 export class MissingRequiredParametersError extends Error {}
 export class UnknownError extends Error {}
+export class NoSuchSessionError extends Error {}
+export class NoSuchTokenError extends Error {}
+export class InvalidTokenSecret extends Error {}
