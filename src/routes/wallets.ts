@@ -13,7 +13,7 @@ const app = Router();
 
 app.use(RestrictedAccessMiddlewear);
 
-app.post('/create/', async (req, res) => {
+app.post('/', async (req, res) => {
     console.log('HE WANTS A WALLET!');
     const userid: number = assert(res.locals.userid, 'No userId!');
     const currencyId: string = assert(req.body.currency_id, 'No currencyId!');

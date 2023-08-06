@@ -15,7 +15,7 @@ const app = Router();
 app.use(RestrictedAccessMiddlewear);
 
 
-app.post('/begin/', async (req, res) => {
+app.post('/', async (req, res) => {
     console.log('Creating a transaction');
     const userid: number = res.locals.userid;
     const source_wallet_key = req.body.debtor;

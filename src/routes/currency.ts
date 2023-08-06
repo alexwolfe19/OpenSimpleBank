@@ -14,7 +14,7 @@ const currency_route = Router();
 
 currency_route.use(RestrictedAccessMiddlewear);
 
-currency_route.post('/create/', async (req, res) => {
+currency_route.post('/', async (req, res) => {
     console.log('Creating a new currency!');
     const userid: number =  assert(res.locals.userid, 'Unable to get user ID!');
     const signSymbol =      assert(req.body.symbol, 'Unable to get symbol!');
