@@ -67,7 +67,7 @@
                 volume        : Number(document.getElementById('volume').value)
             };
 
-            makePOSTRequest('currency/create/', JSON.stringify(payload))
+            makePOSTRequest('currency/', JSON.stringify(payload))
             .then(reply => {
                 alert(":)")
                 console.log(reply);

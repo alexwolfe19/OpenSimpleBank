@@ -1,13 +1,19 @@
 // Imports
 import { Router } from 'express';
 import logger from '../logger';
-import { createUser, validateUserLogin, generateUserSession, NoSuchUserError, InvalidLoginCredentialsError } from '../utils/identity';
-import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
+import { createUser, generateSession, validateUserLogin } from '../utils/identity';
+import { OptionalIdentificationMiddlewear, RestrictedAccessMiddlewear } from '../middlewear/identitygate';
+import { InvalidLoginCredentialsError, NoSuchUserError } from '../utils/errors';
+import { PrismaClient } from '@prisma/client';
+import { assert, isnull } from '../utils/general';
+
+// Get database connection
+const dbcon = new PrismaClient();
 
 // Create our apps
 const app = Router();
 
-app.post('/create/', async (req, res) => {
+app.post('/signup/', async (req, res) => {
     logger.debug('Received request to create account!');
     const username: string = req.body.username;
     const password: string = req.body.password;
@@ -35,10 +41,11 @@ app.post('/login/', async (req, res) => {
 
     validateUserLogin(username, password).then((id) => {
         logger.debug('Login validated');
-        generateUserSession(id).then((token) => {
+        generateSession(id).then((token) => {
+            const [ identity,,expires ] = token;
             logger.debug('User session generated');
             res.status(200)
-                .cookie('user-session', token.identity, { httpOnly: true, expires: token.expires })
+                .cookie('user-session', identity, { httpOnly: true, expires: expires })
                 .json({message: 'Login successful!'});
         }).catch((e) => {
             logger.warn('Failed to generate user session!');
@@ -66,6 +73,33 @@ app.post('/login/', async (req, res) => {
 
 app.get('/is-logged-in/', RestrictedAccessMiddlewear, async (req, res) => {
     res.send('Hey baby!');
+});
+
+app.use(OptionalIdentificationMiddlewear);
+
+app.get('/:username/', async (req, res) => {
+    const username = assert(req.params.username);
+    const userid = res.locals.userid;
+
+    let filter: { username?: string, id?: number } = { username: username };
+    let query = { id: true, username: true, createdOn: true, email: false };
+
+    try {
+        if (username == '@me') {
+            if (isnull(userid)) return res.status(401).json({message: 'You are not logged in!'});
+            filter = { id: userid };
+            query = { id: true, username: true, createdOn: true, email: true };
+        }
+    } catch (e) {
+        return res.status(500).send('');
+    }
+
+    try {
+        const account = await dbcon.userAccount.findFirst({ where: filter, select: query });
+        res.status(200).json(account);
+    } catch (e) {
+        return res.status(500).send('');
+    }
 });
 
 // Export the app :D

@@ -28,7 +28,7 @@
 
     <script>
         function makeNewWallet() {
-            makePOSTRequest('wallet/create/', {
+            makePOSTRequest('wallet/', {
                 nickname: document.getElementById('nickname').value,
                 currency_id: document.getElementById('currencyid').value,
             }).then(reply => {
