@@ -230,6 +230,7 @@ enum TransactionStatus {
 model Currency {
   id      String @id @default(uuid())
   ownerId Int
+  public Boolean @default(true)
 
   currencySign String
   groupingSize Int
@@ -345,6 +346,4 @@ enum Permission {
   WALLET_MEMBER_ADD
   WALLET_MEMBER_LIST_PERMS
   WALLET_MEMBER_CHANGE_PERMS
-
-  @@map("Permissions")
 }

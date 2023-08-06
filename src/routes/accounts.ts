@@ -6,6 +6,7 @@ import { OptionalIdentificationMiddlewear, RestrictedAccessMiddlewear } from '..
 import { InvalidLoginCredentialsError, NoSuchUserError } from '../utils/errors';
 import { PrismaClient } from '@prisma/client';
 import { assert, isnull } from '../utils/general';
+import { UserInfoAccess, canUserLogin, viewTokenGrantsToUserInfo, viewUserGrantsToUserInfo } from '../utils/permissions';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -39,21 +40,28 @@ app.post('/login/', async (req, res) => {
 
     logger.debug('User attempting login');
 
-    validateUserLogin(username, password).then((id) => {
+    validateUserLogin(username, password).then(async (id) => {
         logger.debug('Login validated');
-        generateSession(id).then((token) => {
-            const [ identity,,expires ] = token;
-            logger.debug('User session generated');
-            res.status(200)
-                .cookie('user-session', identity, { httpOnly: true, expires: expires })
-                .json({message: 'Login successful!'});
-        }).catch((e) => {
-            logger.warn('Failed to generate user session!');
-            console.warn(e);
-            res.status(500).json({
-                message: 'Unable to generate session'
+
+        const allowed = await canUserLogin(id);
+
+        if (allowed) {
+            generateSession(id).then((token) => {
+                const [ identity,,expires ] = token;
+                logger.debug('User session generated');
+                res.status(200)
+                    .cookie('user-session', identity, { httpOnly: true, expires: expires })
+                    .json({message: 'Login successful!'});
+            }).catch((e) => {
+                logger.warn('Failed to generate user session!');
+                console.warn(e);
+                res.status(500).json({
+                    message: 'Unable to generate session'
+                });
             });
-        });
+        } else {
+            return res.status(401).json({ message: 'You are forbidden from logging in' });
+        }
     }).catch((e) => {
         console.warn(e);
         logger.warn('Failed to authenticate user');
@@ -80,23 +88,31 @@ app.use(OptionalIdentificationMiddlewear);
 app.get('/:username/', async (req, res) => {
     const username = assert(req.params.username);
     const userid = res.locals.userid;
-
-    let filter: { username?: string, id?: number } = { username: username };
-    let query = { id: true, username: true, createdOn: true, email: false };
+    const tokenKey = res.locals.tokenkey;
 
     try {
         if (username == '@me') {
             if (isnull(userid)) return res.status(401).json({message: 'You are not logged in!'});
-            filter = { id: userid };
-            query = { id: true, username: true, createdOn: true, email: true };
-        }
-    } catch (e) {
-        return res.status(500).send('');
-    }
+            const accessPermissions = await viewUserGrantsToUserInfo(userid, username);
+            const query = { id: true, username: accessPermissions.username, createdOn: accessPermissions.createdOn, email: accessPermissions.email };
+            const account = await dbcon.userAccount.findFirst({ where: { id: userid }, select: query });
+            return res.status(200).json(account);
+        } else {
+            let permissions: UserInfoAccess = { username: true, createdOn: true, email: false, defaultApplicationId: false, tokenList: false, sessionList: false, membershipList: false };
+            
+            if (isnull(tokenKey) && !isnull(userid)) {
+                // They need to identify via session then!
+                permissions = await viewTokenGrantsToUserInfo(userid, username);
+            } else if (!isnull(tokenKey)) {
+                // Identify via token
+                permissions = await viewTokenGrantsToUserInfo(tokenKey, username);
+            }
 
-    try {
-        const account = await dbcon.userAccount.findFirst({ where: filter, select: query });
-        res.status(200).json(account);
+            const query = { id: true, username: permissions.username, createdOn: permissions.createdOn, email: permissions.email };
+            const account = await dbcon.userAccount.findFirst({ where: { username: username }, select: query });
+
+            return res.status(200).json(account);
+        }
     } catch (e) {
         return res.status(500).send('');
     }

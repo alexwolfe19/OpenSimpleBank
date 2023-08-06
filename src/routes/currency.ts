@@ -1,10 +1,11 @@
 // Imports
 import { Router } from 'express';
 // import logger from '../logger';
-import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
+import { OptionalIdentificationMiddlewear, RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { PrismaClient } from '@prisma/client';
 import { createCurrency } from '../utils/currency';
 import { assert, isnull } from '../utils/general';
+import { canTokenCreateAccountFor, canUserCreateCurrencyFor } from '../utils/permissions';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -12,11 +13,43 @@ const dbcon = new PrismaClient();
 // Create our apps
 const currency_route = Router();
 
+currency_route.use(OptionalIdentificationMiddlewear);
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+currency_route.get('/list/', async (req, res) => {
+    const currency_list = await dbcon.currency.findMany({
+        select: {
+            id: true,
+            ownerId: false,
+            currencySign: true,
+            longName: true,
+            shortName: true,
+            volume: true,
+            liquidity: true,
+            public: true,
+            Owner: {
+                select: {
+                    displayName: true,
+                    id: true,
+                }
+            }
+        }
+    });
+
+    if (currency_list == null || currency_list == undefined) {
+        console.log('Failed to fetch currency!');
+        res.status(500).json([]);
+    } else {
+        res.status(200).json(currency_list);
+    }
+});
+
 currency_route.use(RestrictedAccessMiddlewear);
 
 currency_route.post('/', async (req, res) => {
     console.log('Creating a new currency!');
     const userid =  res.locals.userid;
+    const tokenKey = res.locals.tokenkey;
     const signSymbol =      assert(req.body.symbol, 'Unable to get symbol!');
     const grouping =        Number(req.body.grouping);
     const decimalCount =    Number(req.body.decimals);
@@ -33,6 +66,14 @@ currency_route.post('/', async (req, res) => {
 
     assert(applicationId, 'No application ID was specified!');
 
+    let allowed = false;
+
+    if (isnull(tokenKey) && isnull(userid)) return res.status(401).json({ message: 'No authentication provided!' });
+    else if (isnull(tokenKey)) allowed = await canUserCreateCurrencyFor(userid, applicationId);
+    else allowed = await canTokenCreateAccountFor(tokenKey, applicationId);
+
+    if (!allowed) return res.status(401).json({ message: 'You are not authorised to create a currency for that application!', applicationId: applicationId });
+
     try {
         const currencyid = await createCurrency(Number(applicationId), signSymbol, shortName, longName, grouping, decimalCount, volume);
         res.status(200).json({
@@ -41,34 +82,6 @@ currency_route.post('/', async (req, res) => {
         });
     } catch (e) {
         console.error(e);
-    }
-});
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-currency_route.get('/list/', async (req, res) => {
-    const currency_list = await dbcon.currency.findMany({
-        select: {
-            id: true,
-            ownerId: false,
-            currencySign: true,
-            longName: true,
-            shortName: true,
-            volume: true,
-            liquidity: true,
-            Owner: {
-                select: {
-                    displayName: true,
-                    id: true,
-                }
-            }
-        }
-    });
-
-    if (currency_list == null || currency_list == undefined) {
-        console.log('Failed to fetch currency!');
-        res.status(500).json([]);
-    } else {
-        res.status(200).json(currency_list);
     }
 });
 
