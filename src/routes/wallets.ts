@@ -15,10 +15,14 @@ app.use(RestrictedAccessMiddlewear);
 app.post('/create/', async (req, res) => {
     console.log('HE WANTS A WALLET!');
     const userid: number = res.locals.userid;
+    const currencyId: string = req.body.currency_id;
+    const nickname: string = req.body.nickname;
     
     const result = await dbcon.wallet.create({data:{
         balance: 10,
         masterId: userid,
+        currencyId: currencyId,
+        nickname: nickname,
         Owners: { create: { accountId: userid } }
     }});
 
@@ -47,7 +51,8 @@ app.get('/list/', async (req, res) => {
         },
         select: {
             id: true,
-            balance: true
+            balance: true,
+            nickname: true
         }
     });
 
