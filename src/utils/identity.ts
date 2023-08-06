@@ -58,13 +58,15 @@ async function synthNewSession(): Promise<[string, Date, Date]> {
     return [identity, timestamp, expires_on];
 }
 
-export async function createUser(username: string, password: string, email: string | undefined) {
+export async function createUser(username: string, password: string, email: string | undefined, isAdmin: boolean = false, canLogin: boolean = true) {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const account = await dbcon.userAccount.create({
         data: { 
             username: username, 
             passwordHash: passwordHash, 
             email: email,
+            isAdmin: isAdmin,
+            canLogin: canLogin,
             DefaultApplication: {
                 create: {
                     displayName: `${username}'s Application`,
@@ -81,18 +83,10 @@ export async function createUser(username: string, password: string, email: stri
         data: { applicationId: defaultApplication.id, accountId: account.id }
     });
 
-    const defaultRole = await dbcon.role.create({
-        data: {
-            internal: true,
-            applicationId: defaultApplication.id,
-            accountMemberIds: [ account.id ]
-        }
-    });
-
     await dbcon.permissionRecord.create({
         data: {
             applicationId: defaultApplication.id,
-            roleId: defaultRole.id,
+            userId: account.id,
             permissions: [Permission.ALL]
         }
     });

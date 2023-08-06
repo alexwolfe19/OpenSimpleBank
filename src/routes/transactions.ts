@@ -19,12 +19,13 @@ app.use(RestrictedAccessMiddlewear);
 app.post('/', async (req, res) => {
     console.log('Creating a transaction');
     const userid: number = res.locals.userid;
+    const tokenkey = res.locals.tokenkey;
     const source_wallet_key = req.body.debtor;
     const dest_wallet_key = req.body.creditor;
     const trans_value = Number(req.body.value);
 
     try {
-        const transaction_id = await beginTransaction(source_wallet_key, dest_wallet_key, userid, trans_value);
+        const transaction_id = await beginTransaction(source_wallet_key, dest_wallet_key, trans_value, userid, tokenkey);
         return res.json({
             code: 'okay',
             message: 'Transaction created!',

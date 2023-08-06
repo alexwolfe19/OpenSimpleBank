@@ -2,11 +2,11 @@
 import { Router } from 'express';
 import logger from '../logger';
 import { createUser, generateSession, validateUserLogin } from '../utils/identity';
-import { OptionalIdentificationMiddlewear, RestrictedAccessMiddlewear } from '../middlewear/identitygate';
+import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { InvalidLoginCredentialsError, NoSuchUserError } from '../utils/errors';
 import { PrismaClient } from '@prisma/client';
 import { assert, isnull } from '../utils/general';
-import { UserInfoAccess, canUserLogin, viewTokenGrantsToUserInfo, viewUserGrantsToUserInfo } from '../utils/permissions';
+import { UserInfoAccess, UserInfoAccessDefaultGrant, canUserLogin, whatUserInfoCanTokenRead, whatUserInfoCanUserRead } from '../utils/permissions';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -83,37 +83,45 @@ app.get('/is-logged-in/', RestrictedAccessMiddlewear, async (req, res) => {
     res.send('Hey baby!');
 });
 
-app.use(OptionalIdentificationMiddlewear);
-
 app.get('/:username/', async (req, res) => {
     const username = assert(req.params.username);
     const userid = res.locals.userid;
     const tokenKey = res.locals.tokenkey;
 
+    let filter: { username?: string, id?: number } = { username: username };
+    let permissions: UserInfoAccess = UserInfoAccessDefaultGrant;
+            
     try {
         if (username == '@me') {
+            console.log('They want themselves');
             if (isnull(userid)) return res.status(401).json({message: 'You are not logged in!'});
-            const accessPermissions = await viewUserGrantsToUserInfo(userid, username);
-            const query = { id: true, username: accessPermissions.username, createdOn: accessPermissions.createdOn, email: accessPermissions.email };
-            const account = await dbcon.userAccount.findFirst({ where: { id: userid }, select: query });
-            return res.status(200).json(account);
-        } else {
-            let permissions: UserInfoAccess = { username: true, createdOn: true, email: false, defaultApplicationId: false, tokenList: false, sessionList: false, membershipList: false };
-            
-            if (isnull(tokenKey) && !isnull(userid)) {
-                // They need to identify via session then!
-                permissions = await viewTokenGrantsToUserInfo(userid, username);
-            } else if (!isnull(tokenKey)) {
-                // Identify via token
-                permissions = await viewTokenGrantsToUserInfo(tokenKey, username);
-            }
-
-            const query = { id: true, username: permissions.username, createdOn: permissions.createdOn, email: permissions.email };
-            const account = await dbcon.userAccount.findFirst({ where: { username: username }, select: query });
-
-            return res.status(200).json(account);
+            filter = { id: userid };
         }
+
+        try {
+            if (isnull(tokenKey) && !isnull(userid)) permissions = await whatUserInfoCanUserRead(userid, username);
+            else if (!isnull(tokenKey)) permissions = await whatUserInfoCanTokenRead(tokenKey, username);
+            else console.warn('Unauthenticated!');
+        } catch (e) { console.error('Failed to find permission records!'); }
+
+        console.log('qprep', isnull(userid), isnull(tokenKey));
+
+        const query = { 
+            id: true, 
+            username: permissions.username, 
+            createdOn: permissions.createdOn, 
+            email: permissions.email, 
+            defaultApplicationId: permissions.defaultApplicationId
+        };
+        
+        console.log('Got them');
+
+        const account = await dbcon.userAccount.findFirst({ where: filter, select: query });
+
+        if (isnull(account)) return res.status(404).json({ message: 'Unable to find user!', username: username });
+        return res.status(200).json({ message: 'Found user', data: account });
     } catch (e) {
+        console.warn('cinamon', e);
         return res.status(500).send('');
     }
 });

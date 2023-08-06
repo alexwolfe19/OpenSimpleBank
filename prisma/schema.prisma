@@ -19,6 +19,12 @@ model UserAccount {
   passwordHash         String
   defaultApplicationId Int?
 
+  isAdmin Boolean @default(false)
+  canLogin Boolean @default(true)
+  canBeDeleted Boolean @default(true)
+  canCreateUserApplications Boolean @default(true)
+  canCreateUserTokens Boolean @default(true)
+
   // Virtual
   Tokens             Token[]
   Sessions           Session[]
@@ -94,41 +100,31 @@ model Application {
   Wallets             Wallet[]
   Currencies          Currency[]
   Permissions         PermissionRecord[]
-  Roles               Role[]
-}
-
-model Role {
-  id            Int     @id @default(autoincrement())
-  applicationId Int
-  priority      Int     @default(0)
-  displayName   String?
-  internal      Boolean @default(false)
-  permissionIds Int[]
-
-  accountMemberIds Int[]
-  tokenMemberIds   Int[]
-
-  // Virtual
-  Permissions PermissionRecord[]
-  Application Application @relation(fields: [applicationId], references: [id])
 }
 
 model PermissionRecord {
   id            Int  @id @default(autoincrement())
-  applicationId Int?
-  roleId        Int?
 
+  // Owners
+  applicationId Int?
+  userId        Int?
+  tokenId       Int?
+  isUserToken   Boolean @default(false)
+
+  @@unique([applicationId, userId, tokenId])
+
+  // Targets
   targetTokenId    String?
   targetBankId     Int?
   targetWalletId   String?
   targetAssetId    Int?
   targetCurrencyId String?
+  targetUserId Int?
 
   permissions Permission[]
 
   // Virtual
   Application Application? @relation(fields: [applicationId], references: [id])
-  Role        Role?        @relation(fields: [roleId], references: [id])
   Token       Token?       @relation(fields: [targetTokenId], references: [identity])
   // BANK
   Wallet      Wallet?      @relation(fields: [targetWalletId], references: [id])
@@ -264,14 +260,29 @@ enum Permission {
   ACCOUNT_TOKENS_MODIFY
   ACCOUNT_TOKENS_MODIFY_ALL
 
+  // Account/Session
+  ACCOUNT_SESSION_LIST
+  ACCOUNT_SESSION_DELETE
+  ACCOUNT_SESSION_READ
+
+  // Account/Memberships
+  ACCOUNT_MEMBERSHIP_LIST
+  ACCOUNT_MEMBERSHIP_JOIN
+  ACCOUNT_MEMBERSHIP_LEAVE
+  ACCOUNT_MEMBERSHIP_READ
+
   // Account/set
-  ACCOUNT_SET_ALL
-  ACCOUNT_SET_USERNAME
-  ACCOUNT_SET_PASSWORD
+  ACCOUNT_WRITE_ALL
+  ACCOUNT_WRITE_USERNAME
+  ACCOUNT_WRITE_PASSWORD
+  ACCOUNT_WRITE_DEFAULT_APPLICATION
 
   // Account/get
-  ACCOUNT_GET_ALL
-  ACCOUNT_GET_USERNAME
+  ACCOUNT_READ_ALL
+  ACCOUNT_READ_USERNAME
+  ACCOUNT_READ_EMAIL
+  ACCOUNT_READ_CREATION
+  ACCOUNT_READ_DEFAULT_APPLICATION
 
   // Session
   SESSION_LIST
@@ -319,9 +330,13 @@ enum Permission {
   APPLICATION_INFO_READ_NAME
   APPLICATION_INFO_READ_DESCRIPTION
   APPLICATION_INFO_READ_IMAGE_URI
+  APPLICATION_INFO_READ_ISPUBLIC
+  APPLICATION_INFO_READ_ISINTERNAL
+
   APPLICATION_INFO_WRITE_NAME
   APPLICATION_INFO_WRITE_DESCRIPTION
   APPLICATION_INFO_WRITE_IMAGE_URI
+  APPLICATION_INFO_WRITE_ISPUBLIC
 
   // Transactions
   TRANSACTION_LIST
