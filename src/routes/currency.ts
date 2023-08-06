@@ -4,7 +4,7 @@ import { Router } from 'express';
 import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { PrismaClient } from '@prisma/client';
 import { createCurrency } from '../utils/currency';
-import { assert } from '../utils/general';
+import { assert, isnull } from '../utils/general';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -16,16 +16,25 @@ currency_route.use(RestrictedAccessMiddlewear);
 
 currency_route.post('/', async (req, res) => {
     console.log('Creating a new currency!');
-    const userid: number =  assert(res.locals.userid, 'Unable to get user ID!');
+    const userid =  res.locals.userid;
     const signSymbol =      assert(req.body.symbol, 'Unable to get symbol!');
     const grouping =        Number(req.body.grouping);
     const decimalCount =    Number(req.body.decimals);
     const shortName =       assert(req.body.short_name, 'Unable to get short name');
     const longName =        assert(req.body.long_name, 'Unable to get long name');
     const volume =          Number(assert(req.body.volume, 'Unable to get volume'));
+    let applicationId = req.body.application_id;
+
+    if (isnull(applicationId) || req.body.application_id == '' || req.body.application_id == '@me') {
+        assert(userid, 'No user ID is specified!');
+        const user = await dbcon.userAccount.findUnique({ where: { id: userid }, select: { defaultApplicationId: true } });
+        applicationId = user!.defaultApplicationId!;
+    }
+
+    assert(applicationId, 'No application ID was specified!');
 
     try {
-        const currencyid = await createCurrency(userid, signSymbol, shortName, longName, grouping, decimalCount, volume);
+        const currencyid = await createCurrency(Number(applicationId), signSymbol, shortName, longName, grouping, decimalCount, volume);
         res.status(200).json({
             message: 'Currency created!',
             refrence: currencyid
@@ -48,7 +57,7 @@ currency_route.get('/list/', async (req, res) => {
             liquidity: true,
             Owner: {
                 select: {
-                    username: true,
+                    displayName: true,
                     id: true,
                 }
             }

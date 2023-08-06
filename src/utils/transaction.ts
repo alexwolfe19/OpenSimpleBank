@@ -7,9 +7,7 @@ import { BalanceInsufficentError, CurrencyMismatchError, NoSuchWalletError, User
 const dbcon = new PrismaClient();
 
 // Types
-const WalletValidator = Prisma.validator<Prisma.WalletInclude>()({
-    Owners: true
-});
+const WalletValidator = Prisma.validator<Prisma.WalletInclude>()({ Owner: true });
 
 type Wallet = Prisma.WalletGetPayload<{
     include: typeof WalletValidator;
@@ -18,13 +16,16 @@ type Wallet = Prisma.WalletGetPayload<{
 export { Wallet, WalletValidator };
 
 // Private Methods
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function validateUserMayBeginTransaction(userId: number, wallet: Wallet) : Promise<boolean> {
-    let authorised = (wallet?.masterId == userId);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
+    let authorised = false;
     if (!authorised) {
-        wallet!.Owners.forEach(owner => {
-            if (owner.accountId != userId) return;
-            if (owner.mayAuthorNewTransactions) authorised = true;
-        });
+        // wallet!.Owners.forEach(owner => {
+        //     if (owner.accountId != userId) return;
+        //     if (owner.mayAuthorNewTransactions) authorised = true;
+        // });
+        
     }
     return authorised;
 }

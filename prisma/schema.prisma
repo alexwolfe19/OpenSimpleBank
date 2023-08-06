@@ -12,85 +12,139 @@ datasource db {
 
 // Identity Stuff
 model UserAccount {
-  id           Int     @id @default(autoincrement())
-  username     String  @unique
-  createdOn DateTime @default(now())
-  email        String?
-  passwordHash String
+  id                   Int      @id @default(autoincrement())
+  username             String   @unique
+  createdOn            DateTime @default(now())
+  email                String?
+  passwordHash         String
+  defaultApplicationId Int?
 
   // Virtual
-  WalletLinks WalletRelation[]
-  Currencies  Currency[]
-  Tokens Token[]
-  Sessions Session[]
+  Tokens             Token[]
+  Sessions           Session[]
+  DefaultApplication Application?            @relation(fields: [defaultApplicationId], references: [id], "primary")
+  Memberships        ApplicationMembership[]
 }
 
 // Sessions - They're used for tracking/identitifcation IN THE BROWSER! Like tokens, but lame.
 model Session {
-  id               Int         @id @default(autoincrement())
-  key           String      @unique
-  tokenId          String?
-  userId          Int?
+  id      Int     @id @default(autoincrement())
+  key     String  @unique
+  tokenId String?
+  userId  Int?
 
-  createdOn       DateTime @default(now())
-  expiredOn       DateTime?
+  createdOn DateTime  @default(now())
+  expiredOn DateTime?
 
   revoked Boolean @default(false)
 
   // Virtual
-  Token Token? @relation(fields: [tokenId], references: [identity])
-  User UserAccount? @relation(fields: [userId], references: [id])
-  Data SessionStorageEntry[]
+  Token       Token?                @relation(fields: [tokenId], references: [identity])
+  User        UserAccount?          @relation(fields: [userId], references: [id])
+  Data        SessionStorageEntry[]
   HTTPRecords HTTPLogEntry[]
 }
 
 model SessionStorageEntry {
   sessionKey String
-  key String
-  body Json? 
-
-  @@unique([sessionKey, key])
+  key        String
+  body       Json?
 
   // Virtual
   Session Session @relation(fields: [sessionKey], references: [key])
+
+  @@unique([sessionKey, key])
 }
 
 model Token {
-  identity         String  @id @default(uuid())
-  userId      Int?
+  identity      String @id @default(uuid())
+  userId        Int?
   applicationId Int?
 
-  secretHash           String
+  secretHash String
 
-  createdOn DateTime    @default(now())
+  createdOn DateTime  @default(now())
   expiresOn DateTime?
 
-  revoked          Boolean     @default(false)
-  authenticated    Boolean     @default(false)
+  revoked       Boolean @default(false)
+  authenticated Boolean @default(false)
 
   // Virtual
-  User UserAccount? @relation(fields: [userId], references: [id])
-  Application Application? @relation(fields: [applicationId], references: [id])
-  Sessions Session[]
+  User        UserAccount?       @relation(fields: [userId], references: [id])
+  Application Application?       @relation(fields: [applicationId], references: [id])
+  Sessions    Session[]
+  Permissions PermissionRecord[]
 }
 
 model Application {
-  id       Int @id @default(autoincrement())
-  masterId Int
+  id         Int     @id @default(autoincrement())
+  isPublic   Boolean @default(false)
+  isInternal Boolean @default(false)
+
+  memberIds Int[]
+
+  displayName String?
+  description String?
+  icon_uri    String?
 
   // Virtual
-  Memberships ApplicationMembership[]
-  Tokens Token[]
+  Tokens              Token[]
+  Memberships         ApplicationMembership[]
+  MembersWhoDefaulted UserAccount[]           @relation("primary")
+  Wallets             Wallet[]
+  Currencies          Currency[]
+  Permissions         PermissionRecord[]
+  Roles               Role[]
+}
+
+model Role {
+  id            Int     @id @default(autoincrement())
+  applicationId Int
+  priority      Int     @default(0)
+  displayName   String?
+  internal      Boolean @default(false)
+  permissionIds Int[]
+
+  accountMemberIds Int[]
+  tokenMemberIds   Int[]
+
+  // Virtual
+  Permissions PermissionRecord[]
+  Application Application @relation(fields: [applicationId], references: [id])
+}
+
+model PermissionRecord {
+  id            Int  @id @default(autoincrement())
+  applicationId Int?
+  roleId        Int?
+
+  targetTokenId    String?
+  targetBankId     Int?
+  targetWalletId   String?
+  targetAssetId    Int?
+  targetCurrencyId String?
+
+  permissions Permission[]
+
+  // Virtual
+  Application Application? @relation(fields: [applicationId], references: [id])
+  Role        Role?        @relation(fields: [roleId], references: [id])
+  Token       Token?       @relation(fields: [targetTokenId], references: [identity])
+  // BANK
+  Wallet      Wallet?      @relation(fields: [targetWalletId], references: [id])
+  // ASSET
+  Currency    Currency?    @relation(fields: [targetCurrencyId], references: [id])
 }
 
 model ApplicationMembership {
   applicationId Int
-  userId        Int
+  accountId     Int
+  joinedOn      DateTime @default(now())
 
-  @@unique([applicationId, userId])
+  Application Application @relation(fields: [applicationId], references: [id])
+  Account     UserAccount @relation(fields: [accountId], references: [id])
 
-  // Virtual
-  Application   Application @relation(fields: [applicationId], references: [id])
+  @@unique([applicationId, accountId])
 }
 
 // Log Stuff
@@ -104,63 +158,48 @@ enum LogLevel {
 }
 
 model HTTPLogEntry {
-  id       Int @id @default(autoincrement())
-  timestamp DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  timestamp  DateTime @default(now())
   actorToken String?
 
   remoteAddress String?
-  path String?
+  path          String?
 
   // Virtual
   Session Session? @relation(fields: [actorToken], references: [key])
 }
 
 model APIEventLog {
-  id       Int @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   timestamp DateTime @default(now())
   identity  String?
-  module String? @default("general")
+  module    String?  @default("general")
   eventType String?
   eventData Json?
-  success Boolean @default(true)
+  success   Boolean  @default(true)
 }
 
 // Finance Stuff
-model WalletRelation {
-  id                        Int     @id @default(autoincrement())
-  accountId                 Int
-  walletKey                 String
-  mayViewBalance            Boolean @default(true)
-  mayViewTransactionHistory Boolean @default(true)
-  mayAuthorNewTransactions  Boolean @default(true)
-  mayAddNewUser             Boolean @default(true)
-  mayRemoveUser             Boolean @default(true)
-  mayDeleteAccount          Boolean @default(true)
-  canRelationBeDeleted      Boolean @default(true)
-
-  // Virtual
-  Account UserAccount @relation(fields: [accountId], references: [id])
-  Wallet  Wallet      @relation(fields: [walletKey], references: [id])
-}
 
 model Wallet {
   id         String  @id @default(uuid())
   balance    Int     @default(0)
-  masterId   Int
+  ownerId    Int
   currencyId String
   nickname   String?
 
   // Virtual
-  Debits   Transaction[]    @relation("debits")
-  Credits  Transaction[]    @relation("credits")
-  Owners   WalletRelation[]
-  Currency Currency         @relation(fields: [currencyId], references: [id])
+  Owner       Application        @relation(fields: [ownerId], references: [id])
+  Debits      Transaction[]      @relation("debits")
+  Credits     Transaction[]      @relation("credits")
+  Currency    Currency           @relation(fields: [currencyId], references: [id])
+  Permissions PermissionRecord[]
 }
 
 model Transaction {
   id                String            @id @default(uuid())
-  debtorId          String?
-  creditorId        String?
+  debtorId          String
+  creditorId        String
   value             Int               @default(0)
   partialValue      Int?
   status            TransactionStatus @default(CREATED)
@@ -202,11 +241,14 @@ model Currency {
   liquidity Int @default(0)
 
   // Owner
-  Owner        UserAccount @relation(fields: [ownerId], references: [id])
+  Owner        Application        @relation(fields: [ownerId], references: [id])
   WalletsUsing Wallet[]
+  Permissions  PermissionRecord[]
 }
 
-enum Permissions {
+enum Permission {
+  ALL
+
   // Account
   ACCOUNT_LOGIN
   ACCOUNT_CREATE
@@ -236,11 +278,10 @@ enum Permissions {
   SESSION_VIEW_ALL
   SESSION_DELETE
   SESSION_DELETE_ALL
-  
+
   // Currency
   CURRENCY_CREATE
   CURRENCY_DISTROY
-  
 
   // Currency/List
   CURRENCY_LIST
@@ -273,7 +314,7 @@ enum Permissions {
   APPLICATION_TOKEN_LIST
   APPLICATION_TOKEN_CREATE
   APPLICATION_TOKEN_DELETE
-  
+
   APPLICATION_INFO_READ_NAME
   APPLICATION_INFO_READ_DESCRIPTION
   APPLICATION_INFO_READ_IMAGE_URI
@@ -304,4 +345,6 @@ enum Permissions {
   WALLET_MEMBER_ADD
   WALLET_MEMBER_LIST_PERMS
   WALLET_MEMBER_CHANGE_PERMS
+
+  @@map("Permissions")
 }

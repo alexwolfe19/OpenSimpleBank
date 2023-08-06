@@ -25,24 +25,19 @@ OptionalIdentificationMiddlewear.use(async (req, res, next) => {
     // Step 1. Get our token
     // const usersession_cookie = req.cookies['user-session'];
 
-    console.log('===[IdentityGate]===');
     const token = req.cookies['user-session'];
-    console.log('(Token)', token);
     if (token == null || token == undefined) {
         next();
     } else {
         res.locals.user_token = token;
         console.log(token);
         try {
-            console.log('Validating token...');
             const result = await validateSession(token);
-            console.log(`Token is ${(result.valid) ? '' : 'not'} valid!`);
+            console.log(`Token is ${(result.valid) ? '' : 'not'} valid!`, token);
 
             console.table(result.session);
 
             if (result.valid) res.locals.userid = result.session!.userId;
-            console.log('Moving on to next entry');
-            console.log('===[IdentityGate]===');
             return next();
         } catch(e) {
             next();

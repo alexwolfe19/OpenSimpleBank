@@ -7,6 +7,7 @@ import { beginTransaction } from '../utils/transaction';
 import { BalanceInsufficentError, CurrencyMismatchError, NoSuchWalletError, UserUnauthorisedError } from '../utils/errors';
 
 // Get database connection
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const dbcon = new PrismaClient();
 
 // Create our apps
@@ -63,18 +64,7 @@ app.post('/', async (req, res) => {
 });
 
 app.get('/list/', async (req, res) => {
-    const userid: number = res.locals.userid;
-
-    const wallets = await dbcon.wallet.findMany({where: {
-        OR: [
-            {Owners: {
-                some: {accountId: userid}
-            }},
-            {masterId: userid}
-        ]
-    }});
-
-    res.json(wallets);
+    res.send('');
 });
 
 // Export the app :D
