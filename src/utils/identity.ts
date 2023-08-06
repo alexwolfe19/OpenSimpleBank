@@ -1,5 +1,5 @@
 // Imports
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Permission, Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { InvalidLoginCredentialsError, InvalidTokenSecret, MissingRequiredParametersError, NoSuchTokenError, NoSuchUserError } from './errors';
@@ -58,11 +58,39 @@ async function synthNewSession(): Promise<[string, Date, Date]> {
     return [identity, timestamp, expires_on];
 }
 
-export async function createUser(username: string, password: string, email: string | undefined) {
+export async function createUser(username: string, password: string, email: string | undefined, isAdmin: boolean = false, canLogin: boolean = true) {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const account = await dbcon.userAccount.create({
-        data: { username: username, passwordHash: passwordHash, email: email }
+        data: { 
+            username: username, 
+            passwordHash: passwordHash, 
+            email: email,
+            isAdmin: isAdmin,
+            canLogin: canLogin,
+            DefaultApplication: {
+                create: {
+                    displayName: `${username}'s Application`,
+                    isPublic: false,
+                    isInternal: true
+                }
+            }
+        },
+        include: { DefaultApplication: true }
     });
+    const defaultApplication = account.DefaultApplication!;
+
+    await dbcon.applicationMembership.create({
+        data: { applicationId: defaultApplication.id, accountId: account.id }
+    });
+
+    await dbcon.permissionRecord.create({
+        data: {
+            applicationId: defaultApplication.id,
+            userId: account.id,
+            permissions: [Permission.ALL]
+        }
+    });
+
 
     return account;
 }

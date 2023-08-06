@@ -3,7 +3,7 @@ import { Router } from 'express';
 // import logger from '../logger';
 import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { PrismaClient } from '@prisma/client';
-import { assert } from '../utils/general';
+import { assert, isnull } from '../utils/general';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -15,46 +15,48 @@ app.use(RestrictedAccessMiddlewear);
 
 app.post('/', async (req, res) => {
     console.log('HE WANTS A WALLET!');
-    const userid: number = assert(res.locals.userid, 'No userId!');
+
+    const userid: number = res.locals.userid;
+    let applicationId = req.body.application_id;
+
+    if (isnull(applicationId) || req.body.application_id == '@me') {
+        if (isnull(userid)) return res.status(501).json({ message: 'No application specified!' });
+        const user = await dbcon.userAccount.findUnique({ where: { id: userid }, select: { defaultApplicationId: true } });
+        applicationId = user!.defaultApplicationId!;
+    }
+
     const currencyId: string = assert(req.body.currency_id, 'No currencyId!');
     const nickname: string = req.body.nickname;
-    
-    const result = await dbcon.wallet.create({data:{
-        balance: 10,
-        masterId: userid,
-        currencyId: currencyId,
-        nickname: nickname,
-        Owners: { create: { accountId: userid } }
-    }});
+    try {
+        const wallet = await dbcon.wallet.create({data:{
+            balance: 10,
+            ownerId: applicationId,
+            currencyId: currencyId,
+            nickname: nickname
+        }});
 
-    console.log('I ADDED A FLUFFING WALLET!', result.id, result.masterId);
+        console.log('I ADDED A FLUFFING WALLET!', wallet.id, wallet.ownerId);
 
-    if (result == null || result == undefined || result.id == null || result.id == undefined || result.id == '') {
-        console.error('WHYYYYYYYY');
-        res.status(500).send(':(');
-    } else {
-        console.log('Sexy baby!');
+        if (isnull(wallet)) return res.status(500).json({ message: 'Failed to create wallet!' });
         res.status(200).send('Wallet created!');
+    } catch (e) {
+        return res.status(500).json({ message: 'Failed to create wallet!' });
     }
 });
 
 app.get('/list/', async (req, res) => {
     const userid: number = res.locals.userid;
+    const targetId: string = req.body.owner_id;
+
+    let query: { ownerId?: number, Memberships?: { some?: { accountId?: number } } } = { ownerId: Number(targetId) };
+
+    if (targetId == '@me' || isnull(targetId) || targetId == '') {
+        query = { Memberships: { some: {accountId: userid} }};
+    }
 
     const wallets = await dbcon.wallet.findMany({
-        where: {
-            OR: [
-                {Owners: {
-                    some: {accountId: userid}
-                }},
-                {masterId: userid}
-            ],
-        },
-        select: {
-            id: true,
-            balance: true,
-            nickname: true
-        }
+        where: { Owner: query },
+        select: { id: true, balance: true, nickname: true }
     });
 
     res.json(wallets);

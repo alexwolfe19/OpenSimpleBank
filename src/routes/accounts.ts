@@ -2,10 +2,11 @@
 import { Router } from 'express';
 import logger from '../logger';
 import { createUser, generateSession, validateUserLogin } from '../utils/identity';
-import { OptionalIdentificationMiddlewear, RestrictedAccessMiddlewear } from '../middlewear/identitygate';
+import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { InvalidLoginCredentialsError, NoSuchUserError } from '../utils/errors';
 import { PrismaClient } from '@prisma/client';
 import { assert, isnull } from '../utils/general';
+import { UserInfoAccess, UserInfoAccessDefaultGrant, canUserLogin, whatUserInfoCanTokenRead, whatUserInfoCanUserRead } from '../utils/permissions';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -39,21 +40,28 @@ app.post('/login/', async (req, res) => {
 
     logger.debug('User attempting login');
 
-    validateUserLogin(username, password).then((id) => {
+    validateUserLogin(username, password).then(async (id) => {
         logger.debug('Login validated');
-        generateSession(id).then((token) => {
-            const [ identity,,expires ] = token;
-            logger.debug('User session generated');
-            res.status(200)
-                .cookie('user-session', identity, { httpOnly: true, expires: expires })
-                .json({message: 'Login successful!'});
-        }).catch((e) => {
-            logger.warn('Failed to generate user session!');
-            console.warn(e);
-            res.status(500).json({
-                message: 'Unable to generate session'
+
+        const allowed = await canUserLogin(id);
+
+        if (allowed) {
+            generateSession(id).then((token) => {
+                const [ identity,,expires ] = token;
+                logger.debug('User session generated');
+                res.status(200)
+                    .cookie('user-session', identity, { httpOnly: true, expires: expires })
+                    .json({message: 'Login successful!'});
+            }).catch((e) => {
+                logger.warn('Failed to generate user session!');
+                console.warn(e);
+                res.status(500).json({
+                    message: 'Unable to generate session'
+                });
             });
-        });
+        } else {
+            return res.status(401).json({ message: 'You are forbidden from logging in' });
+        }
     }).catch((e) => {
         console.warn(e);
         logger.warn('Failed to authenticate user');
@@ -75,29 +83,45 @@ app.get('/is-logged-in/', RestrictedAccessMiddlewear, async (req, res) => {
     res.send('Hey baby!');
 });
 
-app.use(OptionalIdentificationMiddlewear);
-
 app.get('/:username/', async (req, res) => {
     const username = assert(req.params.username);
     const userid = res.locals.userid;
+    const tokenKey = res.locals.tokenkey;
 
     let filter: { username?: string, id?: number } = { username: username };
-    let query = { id: true, username: true, createdOn: true, email: false };
-
+    let permissions: UserInfoAccess = UserInfoAccessDefaultGrant;
+            
     try {
         if (username == '@me') {
+            console.log('They want themselves');
             if (isnull(userid)) return res.status(401).json({message: 'You are not logged in!'});
             filter = { id: userid };
-            query = { id: true, username: true, createdOn: true, email: true };
         }
-    } catch (e) {
-        return res.status(500).send('');
-    }
 
-    try {
+        try {
+            if (isnull(tokenKey) && !isnull(userid)) permissions = await whatUserInfoCanUserRead(userid, username);
+            else if (!isnull(tokenKey)) permissions = await whatUserInfoCanTokenRead(tokenKey, username);
+            else console.warn('Unauthenticated!');
+        } catch (e) { console.error('Failed to find permission records!'); }
+
+        console.log('qprep', isnull(userid), isnull(tokenKey));
+
+        const query = { 
+            id: true, 
+            username: permissions.username, 
+            createdOn: permissions.createdOn, 
+            email: permissions.email, 
+            defaultApplicationId: permissions.defaultApplicationId
+        };
+        
+        console.log('Got them');
+
         const account = await dbcon.userAccount.findFirst({ where: filter, select: query });
-        res.status(200).json(account);
+
+        if (isnull(account)) return res.status(404).json({ message: 'Unable to find user!', username: username });
+        return res.status(200).json({ message: 'Found user', data: account });
     } catch (e) {
+        console.warn('cinamon', e);
         return res.status(500).send('');
     }
 });

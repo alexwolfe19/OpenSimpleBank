@@ -16,3 +16,8 @@ export function ifndef<T>(value: T, callback: () => void) : T | void {
     if (isnull(value)) return callback();
     return value;
 }
+
+export function defaultsTo<T>(value: T, defval: T): T {
+    if (isnull(value)) return defval;
+    return value;
+}
