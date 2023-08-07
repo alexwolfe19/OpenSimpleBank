@@ -6,7 +6,7 @@ function sendPayment() {
     const message = document.getElementById('grant-message').value;
 
 
-    makePOSTRequest('transaction/begin/', JSON.stringify({
+    makePOSTRequest('transaction/', JSON.stringify({
         debtor: source,
         creditor: dest,
         value: value,
