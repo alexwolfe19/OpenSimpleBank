@@ -10,71 +10,204 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
+// Identity Stuff
 model UserAccount {
-  id     Int     @id @default(autoincrement())
-  username  String  @unique
-  email String?
-  passwordHash  String
+  id                   Int      @id @default(autoincrement())
+  username             String   @unique
+  createdOn            DateTime @default(now())
+  email                String?
+  passwordHash         String
+  defaultApplicationId Int?
+
+  isAdmin Boolean @default(false)
+  canLogin Boolean @default(true)
+  canBeDeleted Boolean @default(true)
+  canCreateUserApplications Boolean @default(true)
+  canCreateUserTokens Boolean @default(true)
 
   // Virtual
-  WalletLinks WalletRelation[]
-  Sessions UserSessions[]
+  Tokens             Token[]
+  Sessions           Session[]
+  DefaultApplication Application?            @relation(fields: [defaultApplicationId], references: [id], "primary")
+  Memberships        ApplicationMembership[]
 }
 
-model UserSessions {
-  id     Int     @id @default(autoincrement())
-  userId Int
-  identity String @unique
-  sessionCreatedOn  DateTime @default(now())
-  sessionExpiresOn  DateTime?
-  valid Boolean @default(true)
+// Sessions - They're used for tracking/identitifcation IN THE BROWSER! Like tokens, but lame.
+model Session {
+  id      Int     @id @default(autoincrement())
+  key     String  @unique
+  tokenId String?
+  userId  Int?
+
+  createdOn DateTime  @default(now())
+  expiredOn DateTime?
+
+  revoked Boolean @default(false)
+
   // Virtual
-  Account UserAccount @relation(fields: [userId], references: [id])
+  Token       Token?                @relation(fields: [tokenId], references: [identity])
+  User        UserAccount?          @relation(fields: [userId], references: [id])
+  Data        SessionStorageEntry[]
+  HTTPRecords HTTPLogEntry[]
 }
 
-model WalletRelation {
-  id     Int     @id @default(autoincrement())
-  accountId Int
-  walletKey String
-  mayViewBalance              Boolean   @default(true)
-  mayViewTransactionHistory   Boolean   @default(true)
-  mayAuthorNewTransactions    Boolean   @default(true)
-  mayAddNewUser               Boolean   @default(true)
-  mayRemoveUser               Boolean   @default(true)
-  mayDeleteAccount            Boolean   @default(true)
-  canRelationBeDeleted        Boolean   @default(true)
-  
+model SessionStorageEntry {
+  sessionKey String
+  key        String
+  body       Json?
+
   // Virtual
-  Account UserAccount @relation(fields: [accountId], references: [id])
-  Wallet Wallet @relation(fields: [walletKey], references: [id])
+  Session Session @relation(fields: [sessionKey], references: [key])
+
+  @@unique([sessionKey, key])
 }
+
+model Token {
+  identity      String @id @default(uuid())
+  userId        Int?
+  applicationId Int?
+
+  secretHash String
+
+  createdOn DateTime  @default(now())
+  expiresOn DateTime?
+
+  revoked       Boolean @default(false)
+  authenticated Boolean @default(false)
+
+  // Virtual
+  User        UserAccount?       @relation(fields: [userId], references: [id])
+  Application Application?       @relation(fields: [applicationId], references: [id])
+  Sessions    Session[]
+  Permissions PermissionRecord[]
+}
+
+model Application {
+  id         Int     @id @default(autoincrement())
+  isPublic   Boolean @default(false)
+  isInternal Boolean @default(false)
+
+  memberIds Int[]
+
+  displayName String?
+  description String?
+  icon_uri    String?
+
+  // Virtual
+  Tokens              Token[]
+  Memberships         ApplicationMembership[]
+  MembersWhoDefaulted UserAccount[]           @relation("primary")
+  Wallets             Wallet[]
+  Currencies          Currency[]
+  Permissions         PermissionRecord[]
+}
+
+model PermissionRecord {
+  id            Int  @id @default(autoincrement())
+
+  // Owners
+  applicationId Int?
+  userId        Int?
+  tokenId       Int?
+  isUserToken   Boolean @default(false)
+
+  @@unique([applicationId, userId, tokenId])
+
+  // Targets
+  targetTokenId    String?
+  targetBankId     Int?
+  targetWalletId   String?
+  targetAssetId    Int?
+  targetCurrencyId String?
+  targetUserId Int?
+
+  permissions Permission[]
+
+  // Virtual
+  Application Application? @relation(fields: [applicationId], references: [id])
+  Token       Token?       @relation(fields: [targetTokenId], references: [identity])
+  // BANK
+  Wallet      Wallet?      @relation(fields: [targetWalletId], references: [id])
+  // ASSET
+  Currency    Currency?    @relation(fields: [targetCurrencyId], references: [id])
+}
+
+model ApplicationMembership {
+  applicationId Int
+  accountId     Int
+  joinedOn      DateTime @default(now())
+
+  isOwner Boolean @default(false)
+
+  Application Application @relation(fields: [applicationId], references: [id])
+  Account     UserAccount @relation(fields: [accountId], references: [id])
+
+  @@unique([applicationId, accountId])
+}
+
+// Log Stuff
+enum LogLevel {
+  Info
+  Debug
+  Log
+  Warn
+  Error
+  Fatal
+}
+
+model HTTPLogEntry {
+  id         Int      @id @default(autoincrement())
+  timestamp  DateTime @default(now())
+  actorToken String?
+
+  remoteAddress String?
+  path          String?
+
+  // Virtual
+  Session Session? @relation(fields: [actorToken], references: [key])
+}
+
+model APIEventLog {
+  id        Int      @id @default(autoincrement())
+  timestamp DateTime @default(now())
+  identity  String?
+  module    String?  @default("general")
+  eventType String?
+  eventData Json?
+  success   Boolean  @default(true)
+}
+
+// Finance Stuff
 
 model Wallet {
-  id  String       @id @default(uuid())
-  balance Int @default(0)
-  masterId Int
+  id         String  @id @default(uuid())
+  balance    Int     @default(0)
+  ownerId    Int
+  currencyId String
+  nickname   String?
 
   // Virtual
-  Debits Transaction[] @relation("debits")
-  Credits Transaction[] @relation("credits")
-  Owners WalletRelation[]
+  Owner       Application        @relation(fields: [ownerId], references: [id])
+  Debits      Transaction[]      @relation("debits")
+  Credits     Transaction[]      @relation("credits")
+  Currency    Currency           @relation(fields: [currencyId], references: [id])
+  Permissions PermissionRecord[]
 }
 
 model Transaction {
-  id  String       @id @default(uuid())
-  debtorId String?
-  creditorId String?
-  value Int @default(0)
-  partialValue Int?
-  status TransactionStatus @default(CREATED)
-  createdOn DateTime @default(now())
-  lastUpdatedOn DateTime  @default(now())
-  debtorHeadline String?
+  id                String            @id @default(uuid())
+  debtorId          String?
+  creditorId        String?
+  value             Int               @default(0)
+  partialValue      Int?
+  status            TransactionStatus @default(CREATED)
+  createdOn         DateTime          @default(now())
+  lastUpdatedOn     DateTime          @default(now())
+  debtorHeadline    String?
   debtorDescription String?
 
   // Virtual
-  DebtorWallet Wallet? @relation(fields: [debtorId], references: [id], "debits")
+  DebtorWallet   Wallet? @relation(fields: [debtorId], references: [id], "debits")
   CreditorWallet Wallet? @relation(fields: [creditorId], references: [id], "credits")
 }
 
@@ -90,4 +223,144 @@ enum TransactionStatus {
   REFUND_FAILED
   CHARGED_BACK
   PARTIAL_CHARGE_BACK
+}
+
+model Currency {
+  id      String @id @default(uuid())
+  ownerId Int
+  public Boolean @default(true)
+
+  currencySign String
+  groupingSize Int
+  decimalCount Int
+  shortName    String
+  longName     String
+
+  volume    Int @default(0)
+  liquidity Int @default(0)
+
+  // Owner
+  Owner        Application        @relation(fields: [ownerId], references: [id])
+  WalletsUsing Wallet[]
+  Permissions  PermissionRecord[]
+}
+
+enum Permission {
+  ALL
+
+  // Account
+  ACCOUNT_LOGIN
+  ACCOUNT_CREATE
+  ACCOUNT_FORGET_PASSWORD
+  ACCOUNT_LIST_ALL
+
+  // Account/Token
+  ACCOUNT_TOKENS_LIST
+  ACCOUNT_TOKENS_CREATE
+  ACCOUNT_TOKENS_DELETE
+  ACCOUNT_TOKENS_DELETE_ALL
+  ACCOUNT_TOKENS_MODIFY
+  ACCOUNT_TOKENS_MODIFY_ALL
+
+  // Account/Session
+  ACCOUNT_SESSION_LIST
+  ACCOUNT_SESSION_DELETE
+  ACCOUNT_SESSION_READ
+
+  // Account/Memberships
+  ACCOUNT_MEMBERSHIP_LIST
+  ACCOUNT_MEMBERSHIP_JOIN
+  ACCOUNT_MEMBERSHIP_LEAVE
+  ACCOUNT_MEMBERSHIP_READ
+
+  // Account/set
+  ACCOUNT_WRITE_ALL
+  ACCOUNT_WRITE_USERNAME
+  ACCOUNT_WRITE_PASSWORD
+  ACCOUNT_WRITE_DEFAULT_APPLICATION
+
+  // Account/get
+  ACCOUNT_READ_ALL
+  ACCOUNT_READ_USERNAME
+  ACCOUNT_READ_EMAIL
+  ACCOUNT_READ_CREATION
+  ACCOUNT_READ_DEFAULT_APPLICATION
+
+  // Session
+  SESSION_LIST
+  SESSION_VIEW
+  SESSION_VIEW_ALL
+  SESSION_DELETE
+  SESSION_DELETE_ALL
+
+  // Currency
+  CURRENCY_CREATE
+  CURRENCY_DISTROY
+
+  // Currency/List
+  CURRENCY_LIST
+  CURRENCY_LIST_PUBLIC
+
+  // Currency/Info
+  CURRENCY_INFO_READ_BASIC
+  CURRENCY_INFO_READ_FORMATTING
+  CURRENCY_INFO_READ_VOLUME
+  CURRENCY_INFO_READ_LIQUIDITY
+
+  CURRENCY_INFO_WRITE_FORMATTING
+  CURRENCY_INFO_WRITE_VOLUME
+  CURRENCY_INFO_WRITE_VOLUME_IGNORELIMITS
+
+  CURRENCY_ADMIN_LIST
+  CURRENCY_ADMIN_ADD
+  CURRENCY_ADMIN_REMOVE
+
+  CURRENCY_ISSUE_GRANT
+
+  // Application
+  APPLICATION_CREATE
+  APPLICATION_LIST
+  APPLICATION_LIST_PUBLIC
+  APPLICATION_DELETE
+  APPLICATION_DELETE_ALL
+
+  APPLICATION_TOKEN_READ_INFO
+  APPLICATION_TOKEN_LIST
+  APPLICATION_TOKEN_CREATE
+  APPLICATION_TOKEN_DELETE
+
+  APPLICATION_INFO_READ_NAME
+  APPLICATION_INFO_READ_DESCRIPTION
+  APPLICATION_INFO_READ_IMAGE_URI
+  APPLICATION_INFO_READ_ISPUBLIC
+  APPLICATION_INFO_READ_ISINTERNAL
+
+  APPLICATION_INFO_WRITE_NAME
+  APPLICATION_INFO_WRITE_DESCRIPTION
+  APPLICATION_INFO_WRITE_IMAGE_URI
+  APPLICATION_INFO_WRITE_ISPUBLIC
+
+  // Transactions
+  TRANSACTION_LIST
+  TRANSACTION_CREATE
+
+  TRANSACTION_INFO_READ_DEBTOR
+  TRANSACTION_INFO_READ_CREDITOR
+  TRANSACTION_INFO_READ_VALUE
+  TRANSACTION_INFO_READ_PARTIAL_VALUE
+  TRANSACTION_INFO_READ_STATUS
+  TRANSACTION_INFO_READ_CREATION_TIMESTAMP
+  TRANSACTION_INFO_READ_UPDATE_TIMESTAMP
+  TRANSACTION_INFO_READ_HEADLINE
+  TRANSACTION_INFO_READ_DESCRIPTION
+
+  // Wallets
+  WALLET_LIST
+  WALLET_CREATE
+  WALLET_DELETE
+  WALLET_MEMBER_LIST
+  WALLET_MEMBER_REMOVE
+  WALLET_MEMBER_ADD
+  WALLET_MEMBER_LIST_PERMS
+  WALLET_MEMBER_CHANGE_PERMS
 }
