@@ -55,7 +55,7 @@
         }
 
         function signup() {
-            makeRequest('account/create/').then(() => {
+            makeRequest('account/signup/').then(() => {
                 updateStatus("Account created");
             }).catch(() => {
                 updateStatus("Failed to signup!");

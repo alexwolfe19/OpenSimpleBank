@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>OSB - Currency Information</title>
+
+        <link rel="stylesheet" href="/common/commonstyle.css" />
+        <link rel="stylesheet" href="/common/home.css" />
+
+        <style>
+            .content {
+                display: flex;
+                flex-direction: column;
+            }
+        </style>
+
+    </head>
+    <body>
+        <div id="app">
+            <div class="header">
+                <h1>Currency Information</h1>
+            </div>
+            <div class="content">
+                <div class="column transactions padded-box">
+                    <h3>Transactions</h3>
+                    <table id="transactions" class="boxed-tabled transaction-list">
+                        <thead>
+                            <tr>
+                                <th>Date Posted</th>
+                                <th>Label</th>
+                                <th>Amount</th>
+                                <th>Balance</th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+                <div class="column actions">
+                    <button>Delete</button>
+                    <button>Transfer Out</button>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
