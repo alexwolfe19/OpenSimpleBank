@@ -1,0 +1,25 @@
+.app {
+    display: flex;
+}
+
+.box, .padded-box {
+    box-sizing: border-box;
+}
+
+.box {
+    border: 2px solid black;
+}
+
+h1, h2, h3, h4, h5 {
+    text-align: center;
+}
+
+table.boxed-tabled, table.boxed-tabled th, table.boxed-tabled td {
+    border: 1px solid black;
+}
+
+.padded-box {
+    border: 2px solid black;
+    margin: 5px;
+    padding: 5px;
+}

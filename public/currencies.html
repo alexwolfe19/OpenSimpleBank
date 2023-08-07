@@ -97,7 +97,7 @@
             return reply;
         }
 
-        function makeActionColumn(address) {
+        function makeCurrencyActionColumn(address) {
             const root = document.createElement('td');
 
             const showTransactionsButton = document.createElement('button');
@@ -114,7 +114,7 @@
             return root;
         }
 
-        function load() {
+        function loadCurrency() {
             const table = document.getElementById('wallets');
             const sourcelist = document.getElementById('sources');
 
@@ -132,7 +132,7 @@
                     const short_name_col = document.createElement('td');
                     const owner_name_col = document.createElement('td');
                     const utilisation_col = document.createElement('td');
-                    const actcol = makeActionColumn(currency["id"]);
+                    const actcol = makeCurrencyActionColumn(currency["id"]);
 
                     address_col.innerText = currency["id"];
                     name_col.innerText = currency["longName"];
@@ -160,7 +160,7 @@
 
         makeGETRequest("account/is-logged-in").then((r) => {
             if (r.status != 200) window.location = "/id.html"
-            load();
+            loadCurrency();
         }).catch((e) => {
             console.error(e);
         });

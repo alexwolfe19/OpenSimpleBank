@@ -1,0 +1,60 @@
+.lower div {
+    display: flex;
+    flex-direction: column;
+}
+
+.lower, .upper {
+    display: flex;
+}
+
+.lower .left {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 4;
+}
+
+.lower .left div {
+    flex-grow: 1;
+}
+
+.lower .right {
+    flex-grow: 2;
+}
+
+.lower .right div {
+    flex-grow: 1;
+}
+
+.links {
+    flex-grow: 1;
+    padding: 5px;
+    text-align: center;
+}
+
+.links li {
+    padding: 2px; 
+    padding-right: 25px;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.form .form-body {
+    width: 90%;
+}
+
+.form .submit-button {
+    width: 100%;
+}
+
+.form .form-body tr input, .form .form-body tr select {
+    width: 100%;
+}
+
+.form .form-body tr label {
+    font-weight: bold;
+}
