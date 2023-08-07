@@ -80,7 +80,7 @@ export async function createUser(username: string, password: string, email: stri
     const defaultApplication = account.DefaultApplication!;
 
     await dbcon.applicationMembership.create({
-        data: { applicationId: defaultApplication.id, accountId: account.id }
+        data: { applicationId: defaultApplication.id, accountId: account.id, isOwner: true }
     });
 
     await dbcon.permissionRecord.create({

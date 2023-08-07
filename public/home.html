@@ -4,152 +4,178 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>OSB - Account Home</title>
+
+        <link rel="stylesheet" href="/common/commonstyle.css" />
+        <link rel="stylesheet" href="/common/home.css" />
+
     </head>
     <body>
         <div id="app">
-            <h1>Account Home</h1>
-            <hr>
-            <div class="wallet-list">
-                <h3>Wallets</h3>
-                <table id="wallets">
-                    <tr>
-                        <th>#</th>
-                        <th>Address</th>
-                        <th>Label</th>
-                        <th>Balance</th>
-                        <th>Actions</th>
-                    </tr>
-                </table>
-                <a href="/currencies.html">Currency list</a>
+            <div class="header">
+                <h1>Account Home</h1>
             </div>
-            <div>
-                <h3>Transfer Panel</h3>
-                <p id="transfer-message"></p>
-                <form>
-                    <p>
-                        Source Account
-                        <select id="sources">
-                        </select>
-                    </p>
-                    <p>
-                        Destination Account
-                        <input id="creditor">
-                    </p>
-                    <p>
-                        Amount
-                        <input id="amount">
-                    </p>
-                </form>
-                <button onclick="sendPayment()">Pay</button>
+
+            <div class="content">
+                <div class="left">
+                    <div class="wallet-list padded-box">
+                        <h3>Wallets</h3>
+                        <table id="wallets" class="boxed-tabled">
+                            <tr>
+                                <th>Address</th>
+                                <th>Label</th>
+                                <th>Balance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="app-list padded-box">
+                        <h3>Applications</h3>
+                        <table id="apps" class="boxed-tabled">
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="currency-list padded-box">
+                        <h3>Currencies</h3>
+                        <table id="currencies" class="boxed-tabled">
+                            <tr>
+                                <th>Address</th>
+                                <th>Name</th>
+                                <th>Short Name</th>
+                                <th>Utilisation</th>
+                                <th>Actions</th>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="right">
+                    <div class="form transfer-panel padded-box">
+                        <h3>Transfer Panel</h3>
+                        <table class="form-body">
+                            <tr>
+                                <td>
+                                    <label for="sources">Source</label>
+                                </td>
+                                <td>
+                                    <select id="sources">
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="creditor">Destination</label>
+                                </td>
+                                <td>
+                                    <input id="creditor">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="amount">Amount</label>
+                                </td>
+                                <td>
+                                    <input id="amount">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="message">Message</label>
+                                </td>
+                                <td>
+                                    <textarea id="message"></textarea>
+                                </td>
+                            </tr>
+                        </table>
+                        <p id="transfer-message"></p>
+                        <button class="submit-button" onclick="sendPayment()">Pay</button>
+                    </div>
+
+                    <div class="form grant-panel padded-box">
+                        <h3>Currency Grant Panel</h3>
+                        <table class="form-body">
+                            <tr>
+                                <td>
+                                    <label for="grant-sources">Source</label>
+                                </td>
+                                <td>
+                                    <select id="grant-sources">
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="grant-creditor">Destination</label>
+                                </td>
+                                <td>
+                                    <input id="grant-creditor">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="grant-amount">Amount</label>
+                                </td>
+                                <td>
+                                    <input id="grant-amount">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="grant-message">Message</label>
+                                </td>
+                                <td>
+                                    <textarea id="grant-message"></textarea>
+                                </td>
+                            </tr>
+                        </table>
+                        <p id="grant-message"></p>
+                        <button class="submit-button" onclick="sendGrant()">Pay</button>
+                    </div>
+
+                    <div class="currency-creator form padded-box">
+                        <h3>Currency Creator</h3>
+                        <table class="form-body">
+                            <tr>
+                                <td>Symbol</td>
+                                <td><input id="symbol" value="$"></td>
+                            </tr>
+                            <tr>
+                                <td>Number size</td>
+                                <td><input id="grouping" type="number" value="3"></td>
+                            </tr>
+                            <tr>
+                                <td>Decimals</td>
+                                <td><input id="decimals" type="number" value="0"></td>
+                            </tr>
+                            <tr>
+                                <td>Long name</td>
+                                <td><input id="long_name"></td>
+                            </tr>
+                            <tr>
+                                <td>Short name</td>
+                                <td><input id="short_name"></td>
+                            </tr>
+                            <tr>
+                                <td>Volume</td>
+                                <td><input id="volume" type="number" value="1000"></td>
+                            </tr>
+                        </table>
+                        <p id="creator-message"></p>
+                        <button class="submit-button" onclick="makeCurrency()">Create currency</button>
+                    </div>
+                </div>
+                <div class="padded-box links">
+                    <h3>Useful Links</h3>
+                    <ul>
+                        <li>
+                            <a href="/currencies.html">Currency List</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </body>
 
-    <script>
-        function sendPayment() {
-            const source = document.getElementById('sources').value;
-            const dest = document.getElementById('creditor').value;
-            const value = document.getElementById('amount').value;
-
-
-            makePOSTRequest('transaction/begin/', JSON.stringify({
-                debtor: source,
-                creditor: dest,
-                value: value
-            })).then(reply => {
-                alert(":)")
-                console.log(reply);
-            }).catch(e => {
-                alert(":(")
-                console.error(e);
-            })
-        }
-
-        async function makePOSTRequest(path, body) {
-            if (typeof body == "object") body = JSON.stringify(body);
-            const request = new Request(`/api/${path}`, {
-                method: 'POST',
-                body: body,
-                headers: {"Content-Type": "application/json"}
-            });
-            const reply = await fetch(request);
-            return reply;
-        }
-
-        async function makeGETRequest(path) {
-            if (typeof body == "object") body = JSON.stringify(body);
-            const request = new Request(`/api/${path}`, {
-                method: 'GET'
-            });
-            const reply = await fetch(request);
-            return reply;
-        }
-
-        function makeActionColumn(address) {
-            const root = document.createElement('td');
-
-            const showTransactionsButton = document.createElement('button');
-            showTransactionsButton.innerText = "Show Transactions";
-            root.appendChild(showTransactionsButton);
-
-            const selectAsSourceButton = document.createElement('button');
-            selectAsSourceButton.innerText = "Make Source";
-            selectAsSourceButton.onclick = () => {
-                const sourcelist = document.getElementById('sources');
-                sourcelist.value = address;
-            }
-            root.appendChild(selectAsSourceButton);
-
-            return root;
-        }
-
-        function load() {
-            const table = document.getElementById('wallets');
-            const sourcelist = document.getElementById('sources');
-
-            makeGETRequest('wallet/list/').then(async (body) => {
-                const list = await body.json();
-
-                for (var count=0; count<list.length; count++) {
-                    const wallet = list[count];
-                    const row = document.createElement('tr');
-                    const ncol = document.createElement('td');
-                    const addr = document.createElement('td');
-                    const label = document.createElement('td');
-                    const balcol = document.createElement('td');
-                    const actcol = makeActionColumn(wallet["id"]);
-
-                    const label_text = wallet["nickname"] || `Unnamed Wallet`;
-
-                    const source_option = document.createElement("option");
-                    source_option.value = wallet["id"];
-                    source_option.innerText = label_text;
-                    sourcelist.appendChild(source_option);
-
-                    ncol.innerText = count + 1;
-                    addr.innerText = wallet["id"];
-                    label.innerText = label_text;
-                    balcol.innerText = wallet["balance"];
-
-                    row.appendChild(ncol);
-                    row.appendChild(addr);
-                    row.appendChild(label);
-                    row.appendChild(balcol);
-                    row.appendChild(actcol);
-
-                    row.setAttribute('wallet-address', wallet["id"])
-
-                    table.appendChild(row);
-                }
-
-            })   
-        }
-
-        makeGETRequest("account/is-logged-in").then((r) => {
-            if (r.status != 200) window.location = "/id.html"
-            load();
-        }).catch((e) => {
-            console.error(e);
-        });
-    </script>
+    <script src="/common/home.js"></script>
 </html>

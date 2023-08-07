@@ -2,10 +2,10 @@
 import { Router } from 'express';
 // import logger from '../logger';
 import { OptionalIdentificationMiddlewear, RestrictedAccessMiddlewear } from '../middlewear/identitygate';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, TransactionStatus } from '@prisma/client';
 import { createCurrency } from '../utils/currency';
 import { assert, isnull } from '../utils/general';
-import { canTokenCreateAccountFor, canUserCreateCurrencyFor } from '../utils/permissions';
+import { canTokenCreateAccountFor, canTokenMakeGrantFromCurrency, canUserCreateCurrencyFor, canUserMakeGrantFromCurrency } from '../utils/permissions';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -85,7 +85,48 @@ currency_route.post('/', async (req, res) => {
     }
 });
 
+currency_route.post('/:uuid/grant/', async (req, res) => {
+    const userid =              res.locals.userid;
+    const tokenKey =            res.locals.tokenkey;
+    const currencyAddress =     assert(req.params.uuid, '[GRANT] No currency address!');
+    const message = (req.body.message);
+    const creditor = assert(req.body.creditor);
+    const amount = Number(assert(req.body.amount));
+    let allowed = false;
 
+    // Check to see if one or the other is provided (if they have, they're **already validated**)
+    if (isnull(tokenKey) && isnull(userid)) return res.status(401).json({ message: 'No authentication provided!' });
+    else if (isnull(tokenKey) && !isnull(userid)) allowed = await canUserMakeGrantFromCurrency(userid, currencyAddress);
+    else if (!isnull(tokenKey)) allowed = await canTokenMakeGrantFromCurrency(tokenKey, currencyAddress);
+
+    if (!allowed) return res.status(401).json({ message: 'You are not authorised to issue a grant!' });
+
+    try {
+        const [transaction] = await dbcon.$transaction([
+            dbcon.transaction.create({data:{
+                creditorId: creditor,
+                value: amount,
+                status: TransactionStatus.PROCESSED,
+                debtorHeadline: 'Grant issued',
+                debtorDescription: message ?? 'Rawr x3 grant time'
+            }}),
+            dbcon.wallet.update({
+                where: {id: creditor},
+                data: {balance:{increment:amount}}
+            }),
+            dbcon.currency.update({
+                where: { id: currencyAddress },
+                data: { liquidity:{increment:amount} }
+            })
+        ]);
+
+        return res.status(200).json({ message: 'Grant created!', transaction_id: transaction.id });
+    } catch(e) {
+        console.error('frick dude', e);
+        return res.status(500).json({ message: 'UwU i messed up' });
+    }
+
+});
 
 // Export the app :D
 export default currency_route;

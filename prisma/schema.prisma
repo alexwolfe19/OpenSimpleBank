@@ -137,6 +137,8 @@ model ApplicationMembership {
   accountId     Int
   joinedOn      DateTime @default(now())
 
+  isOwner Boolean @default(false)
+
   Application Application @relation(fields: [applicationId], references: [id])
   Account     UserAccount @relation(fields: [accountId], references: [id])
 
@@ -194,8 +196,8 @@ model Wallet {
 
 model Transaction {
   id                String            @id @default(uuid())
-  debtorId          String
-  creditorId        String
+  debtorId          String?
+  creditorId        String?
   value             Int               @default(0)
   partialValue      Int?
   status            TransactionStatus @default(CREATED)
@@ -313,7 +315,7 @@ enum Permission {
   CURRENCY_ADMIN_ADD
   CURRENCY_ADMIN_REMOVE
 
-  CURRENCY_PAYOUT
+  CURRENCY_ISSUE_GRANT
 
   // Application
   APPLICATION_CREATE
