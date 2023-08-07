@@ -1,5 +1,7 @@
-.app {
+#app {
     display: flex;
+    flex-direction: column;
+    width: 100%;
 }
 
 .box, .padded-box {
@@ -8,6 +10,18 @@
 
 .box {
     border: 2px solid black;
+}
+
+#app.header {
+    width: 100%;
+}
+
+#app.content {
+    width: 100%;
+}
+
+#app.header h1 {
+    width: 100%;
 }
 
 h1, h2, h3, h4, h5 {

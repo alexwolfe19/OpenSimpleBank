@@ -73,12 +73,12 @@ export async function canUserLogin(user: UserRefrence) : Promise<boolean> {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function canUserCreateAccountFor(application: string, user: UserRefrence) : Promise<boolean> {
-    return true;
+    return false;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function canTokenCreateAccountFor(application: string, identity: string) : Promise<boolean> {
-    return true;
+    return false;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -173,7 +173,7 @@ export async function canUserCreateCurrencyFor(user: UserRefrence, applicationid
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function canTokenCreateCurrencyFor(identity: string, applicationid: string) : Promise<boolean> {
-    return true;
+    return false;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -196,7 +196,7 @@ export async function canUserBeginTransactionFor(user: UserRefrence, walletid: s
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function canTokenBeginTransactionFor(identity: string, walletid: string) : Promise<boolean> {
-    return true;
+    return false;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -221,7 +221,7 @@ export async function canUserCreateApplicationForSelf(user: UserRefrence) : Prom
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function canTokenCreateApplicationForUser(identity: string, user: UserRefrence) : Promise<boolean> {
-    return true;
+    return false;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -257,4 +257,31 @@ export async function whatApplicationInformationCanUserRead(user: UserRefrence, 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function whatApplicationInformationCanTokenRead(identity: string, applicationid: number) : Promise<ApplicationInfoAccess> {
     return ApplicationInfoAccessDefaultGrant;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function canUserMakeGrantFromCurrency(user: UserRefrence, currencyAddress: string) : Promise<boolean> {
+    try {
+        let userId: number = Number(user);
+
+        if (typeof(user) == 'string') {
+            const filter = (user == 'me') ? { id: userId } : { username: user };
+            const tub = await dbcon.userAccount.findUnique({ where: filter });
+            if (isnull(tub)) throw new Error();
+            userId = tub!.id;
+        }
+
+        const permissions = await dbcon.permissionRecord.findFirst({ where: { userId: userId, targetCurrencyId: currencyAddress }});
+        if (isnull(permissions)) return false;
+        const permissionList = permissions!.permissions;
+        const allowed = permissionList.includes(Permission.ALL) || permissionList.includes(Permission.CURRENCY_ISSUE_GRANT);
+        return allowed;
+    } catch (e) {
+        return false;
+    }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function canTokenMakeGrantFromCurrency(identity: string, currencyAddress: string) : Promise<boolean> {
+    return false;
 }

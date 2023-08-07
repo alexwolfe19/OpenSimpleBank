@@ -1,14 +1,36 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function sendPayment() {
-    const source = document.getElementById('sources').value;
-    const dest = document.getElementById('creditor').value;
-    const value = document.getElementById('amount').value;
+    const source = document.getElementById('grant-sources').value;
+    const dest = document.getElementById('grant-creditor').value;
+    const value = document.getElementById('grant-amount').value;
+    const message = document.getElementById('grant-message').value;
 
 
     makePOSTRequest('transaction/begin/', JSON.stringify({
         debtor: source,
         creditor: dest,
-        value: value
+        value: value,
+        message: message
+    })).then(reply => {
+        alert(':)');
+        console.log(reply);
+    }).catch(e => {
+        alert(':(');
+        console.error(e);
+    });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function sendGrant() {
+    const source = document.getElementById('grant-sources').value;
+    const dest = document.getElementById('grant-creditor').value;
+    const value = document.getElementById('grant-amount').value;
+    const message = document.getElementById('grant-message').value;
+
+    makePOSTRequest(`currency/${source}/grant/`, JSON.stringify({
+        message: message,
+        creditor: dest,
+        amount: value
     })).then(reply => {
         alert(':)');
         console.log(reply);
@@ -61,17 +83,31 @@ async function makeGETRequest(path) {
 function makeAccountActionColumn(address) {
     const root = document.createElement('td');
 
-    const showTransactionsButton = document.createElement('button');
-    showTransactionsButton.innerText = 'Show Transactions';
-    root.appendChild(showTransactionsButton);
+    function addActionButton(label, callback) {
+        const btn = document.createElement('button');
+        btn.innerText = label;
+        btn.onclick = callback;
+        root.appendChild(btn);    
+    }
 
-    const selectAsSourceButton = document.createElement('button');
-    selectAsSourceButton.innerText = 'Make Source';
-    selectAsSourceButton.onclick = () => {
+    addActionButton('Show Details', () => {
+
+    });
+
+    addActionButton('Make Transfer Source', () => {
         const sourcelist = document.getElementById('sources');
         sourcelist.value = address;
-    };
-    root.appendChild(selectAsSourceButton);
+    });
+
+    addActionButton('Make Transfer Destination', () => {
+        const sourcelist = document.getElementById('creditor');
+        sourcelist.value = address;
+    });
+
+    addActionButton('Make Grant Destination', () => {
+        const sourcelist = document.getElementById('grant-creditor');
+        sourcelist.value = address;
+    });
 
     return root;
 }
@@ -79,9 +115,12 @@ function makeAccountActionColumn(address) {
 function makeCurrencyActionColumn(address) {
     const root = document.createElement('td');
 
-    const showTransactionsButton = document.createElement('button');
-    showTransactionsButton.innerText = 'Show Details';
-    root.appendChild(showTransactionsButton);
+    const showDetailsButton = document.createElement('button');
+    showDetailsButton.innerText = 'Show Details';
+    showDetailsButton.onclick = () => {
+        window.open(`/currencyinfo.html?target=${address}`, 'walletmaker', 'popup=yes,width=500,height=500');
+    };
+    root.appendChild(showDetailsButton);
 
     const selectAsSourceButton = document.createElement('button');
     selectAsSourceButton.innerText = 'Make Wallet';
@@ -134,9 +173,11 @@ function loadAccount() {
 
 function loadCurrency() {
     const table = document.getElementById('currencies');
+    const gslist = document.getElementById('grant-sources');
 
-    makeGETRequest('currency/list/').then(async (body) => {
-        const list = await body.json();
+    makeGETRequest('account/@me/currencies/').then(async (body) => {
+        const reply_data = await body.json();
+        const list = reply_data.data;
 
         for (var count=0; count<list.length; count++) {
             const currency = list[count];
@@ -147,14 +188,17 @@ function loadCurrency() {
             const address_col = document.createElement('td');
             const name_col = document.createElement('td');
             const short_name_col = document.createElement('td');
-            const owner_name_col = document.createElement('td');
             const utilisation_col = document.createElement('td');
             const actcol = makeCurrencyActionColumn(currency['id']);
 
             address_col.innerText = currency['id'];
             name_col.innerText = currency['longName'];
             short_name_col.innerText = currency['shortName'];
-            owner_name_col.innerText = currency['Owner']['displayName'];
+
+            const source_option = document.createElement('option');
+            source_option.value = currency['id'];
+            source_option.innerText = currency['longName'];
+            gslist.appendChild(source_option);
 
             const liq = Number(currency['liquidity']);
             const vol = Number(currency['volume']);
@@ -165,7 +209,6 @@ function loadCurrency() {
             row.appendChild(address_col);
             row.appendChild(name_col);
             row.appendChild(short_name_col);
-            row.appendChild(owner_name_col);
             row.appendChild(utilisation_col);
             row.appendChild(actcol);
 

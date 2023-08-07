@@ -126,5 +126,71 @@ app.get('/:username/', async (req, res) => {
     }
 });
 
+app.get('/:username/applications/', async (req, res) => {
+    const actorId = res.locals.userid;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const actorToken = res.locals.tokenkey;
+    const username = assert(req.params.username);
+    const onlyShowOwnedApplications = req.query.owned;
+
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const allowed = true; // @TODO actually do this
+        let filter: { id?: number, username?: string, isOwner?: boolean } = (onlyShowOwnedApplications) ? { username: username, isOwner: true } : { username: username };
+
+        if (username == '@me') {
+            if (isnull(actorId)) return res.status(401).json({message: 'You are not logged in!'});
+            filter = (onlyShowOwnedApplications) ? { id: actorId, isOwner: true } : { id: actorId };
+        }
+
+        try {
+            // if (isnull(actorToken) && !isnull(actorId)) permissions = await whatUserInfoCanUserRead(actorId, username);
+            // else if (!isnull(actorToken)) permissions = await whatUserInfoCanTokenRead(actorToken, username);
+            // else console.warn('Unauthenticated!');
+        } catch (e) { console.error('Failed to find permission records!'); }
+
+        const applications = await dbcon.application.findMany({ 
+            where: { Memberships: { some: { Account: filter } }},
+            select: { id: true, displayName: true, description: true, icon_uri: true, isPublic: true }
+        });
+        return res.status(200).json(applications);
+    } catch(e) {
+        return res.json(500).json({ message: 'I messed up daddy' });
+    }
+});
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.get('/:username/currencies/', async (req, res) => {
+    const actorId = res.locals.userid;
+    // const actorToken = res.locals.tokenkey;
+    const username = req.params.username;
+
+    try {
+        const filter = (req.params.username == '@me')
+            ? { isOwner: true, accountId: actorId }
+            : { isOwner: true, Account: { username: username } };
+
+        const list = await dbcon.currency.findMany({
+            where: { Owner: { Memberships: { some: filter }} },
+            select: {
+                id: true,
+                ownerId : true,
+                public : true,
+                currencySign : true,
+                groupingSize : true,
+                decimalCount : true,
+                shortName : true,
+                longName : true,
+                liquidity : true,
+                volume : true
+            }
+        });
+
+        res.status(200).json({ message: 'Fetched list of owned currencies!', data: list });
+    } catch (e) {
+        return res.json(500).json({ message: 'I messed up daddy' });
+    }
+});
+
 // Export the app :D
 export default app;

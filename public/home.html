@@ -11,11 +11,11 @@
     </head>
     <body>
         <div id="app">
-            <div class="upper header">
+            <div class="header">
                 <h1>Account Home</h1>
             </div>
 
-            <div class="lower">
+            <div class="content">
                 <div class="left">
                     <div class="wallet-list padded-box">
                         <h3>Wallets</h3>
@@ -44,7 +44,6 @@
                                 <th>Address</th>
                                 <th>Name</th>
                                 <th>Short Name</th>
-                                <th>Owner</th>
                                 <th>Utilisation</th>
                                 <th>Actions</th>
                             </tr>
@@ -80,9 +79,58 @@
                                     <input id="amount">
                                 </td>
                             </tr>
+                            <tr>
+                                <td>
+                                    <label for="message">Message</label>
+                                </td>
+                                <td>
+                                    <textarea id="message"></textarea>
+                                </td>
+                            </tr>
                         </table>
                         <p id="transfer-message"></p>
                         <button class="submit-button" onclick="sendPayment()">Pay</button>
+                    </div>
+
+                    <div class="form grant-panel padded-box">
+                        <h3>Currency Grant Panel</h3>
+                        <table class="form-body">
+                            <tr>
+                                <td>
+                                    <label for="grant-sources">Source</label>
+                                </td>
+                                <td>
+                                    <select id="grant-sources">
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="grant-creditor">Destination</label>
+                                </td>
+                                <td>
+                                    <input id="grant-creditor">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="grant-amount">Amount</label>
+                                </td>
+                                <td>
+                                    <input id="grant-amount">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <label for="grant-message">Message</label>
+                                </td>
+                                <td>
+                                    <textarea id="grant-message"></textarea>
+                                </td>
+                            </tr>
+                        </table>
+                        <p id="grant-message"></p>
+                        <button class="submit-button" onclick="sendGrant()">Pay</button>
                     </div>
 
                     <div class="currency-creator form padded-box">

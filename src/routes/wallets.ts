@@ -29,7 +29,7 @@ app.post('/', async (req, res) => {
     const nickname: string = req.body.nickname;
     try {
         const wallet = await dbcon.wallet.create({data:{
-            balance: 10,
+            balance: 0,
             ownerId: applicationId,
             currencyId: currencyId,
             nickname: nickname

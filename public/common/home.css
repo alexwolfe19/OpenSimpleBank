@@ -1,27 +1,27 @@
-.lower div {
+.content div {
     display: flex;
     flex-direction: column;
 }
 
-.lower, .upper {
+.content {
     display: flex;
 }
 
-.lower .left {
+.content .left {
     display: flex;
     flex-direction: column;
     flex-grow: 4;
 }
 
-.lower .left div {
+.content .left div {
     flex-grow: 1;
 }
 
-.lower .right {
+.content .right {
     flex-grow: 2;
 }
 
-.lower .right div {
+.content .right div {
     flex-grow: 1;
 }
 
