@@ -2,7 +2,7 @@
 import { Permission, Prisma, PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { InvalidLoginCredentialsError, InvalidTokenSecret, MissingRequiredParametersError, NoSuchTokenError, NoSuchUserError } from './errors';
+import { InvalidLoginCredentialsError, InvalidPasswordError, InvalidTokenSecret, InvalidUsernameError, MissingRequiredParametersError, NoSuchTokenError, NoSuchUserError } from './errors';
 import { isnull } from './general';
 
 // Load some config
@@ -59,6 +59,9 @@ async function synthNewSession(): Promise<[string, Date, Date]> {
 }
 
 export async function createUser(username: string, password: string, email: string | undefined, isAdmin: boolean = false, canLogin: boolean = true) {
+    if (username == '') throw new InvalidUsernameError();
+    if (password == '') throw new InvalidPasswordError();
+
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const account = await dbcon.userAccount.create({
         data: { 

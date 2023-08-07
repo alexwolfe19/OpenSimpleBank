@@ -28,3 +28,6 @@ export class UnknownError extends Error {}
 export class NoSuchSessionError extends Error {}
 export class NoSuchTokenError extends Error {}
 export class InvalidTokenSecret extends Error {}
+export class InvalidCredentialError extends Error {}
+export class InvalidUsernameError extends InvalidCredentialError {}
+export class InvalidPasswordError extends InvalidCredentialError {}
