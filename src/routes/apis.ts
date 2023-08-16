@@ -16,6 +16,11 @@ import { OptionalIdentificationMiddlewear } from '../middlewear/identitygate';
 // Create our apps
 const api_route = Router();
 
+// Heartbeat
+api_route.get('/heartbeat', (req, res) => {
+    return res.status(200).send('pulse');
+});
+
 // Attach middlewear
 api_route.use(bodyParser.json());
 api_route.use(bodyParser.urlencoded({ extended: false }));
