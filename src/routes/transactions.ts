@@ -17,7 +17,7 @@ app.use(RestrictedAccessMiddlewear);
 
 
 app.post('/', async (req, res) => {
-    console.log('Creating a transaction');
+    // console.log('Creating a transaction');
     const userid: number = res.locals.userid;
     const tokenkey = res.locals.tokenkey;
     const source_wallet_key = req.body.debtor;

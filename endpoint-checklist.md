@@ -63,3 +63,11 @@ Everything is gonna be owned by an application - even user owned stuff (that jus
 - [ ] GET /wallet/:uuid/member/:username/
 - [ ] PATCH /wallet/:uuid/member/:username/
 - [ ] DELETE /wallet/:uuid/member/:username/
+
+- [ ] POST /market/ah/                              (Auction House)
+- [ ] GET /market/ah/:uuid/
+- [ ] POST /market/ah/:uuid/l/                      (Create a new listing)
+- [ ] GET /market/ah/:uuid/l/:id/                   (View the listing)
+- [ ] POST /market/ah/:uuid/l/:id/bid/
+
+- [ ] POST /market/sf/                              (Sales floor - store)

@@ -7,12 +7,12 @@
   "scripts": {
     "test": "jest",
     "prepublish": "npm run build",
-    "start": "npm run prepack && node dist/index.js",
-    "run:dev": "npx ts-node src/index.ts",
+    "start": "npm run build && node dist/index.js",
+    "start:dev": "npx ts-node src/index.ts",
     "build:prisma": "prisma generate",
     "build:ts": "npx tsc",
     "build": "npm run build:prisma && npm run build:ts",
-    "push:prisma": "prisma push"
+    "push:prisma": "prisma db push"
   },
   "repository": {
     "type": "git",

@@ -14,7 +14,7 @@ const app = Router();
 app.use(RestrictedAccessMiddlewear);
 
 app.post('/', async (req, res) => {
-    console.log('HE WANTS A WALLET!');
+    // console.log('HE WANTS A WALLET!');
 
     const userid: number = res.locals.userid;
     let applicationId = req.body.application_id;
@@ -35,7 +35,7 @@ app.post('/', async (req, res) => {
             nickname: nickname
         }});
 
-        console.log('I ADDED A FLUFFING WALLET!', wallet.id, wallet.ownerId);
+        // console.log('I ADDED A FLUFFING WALLET!', wallet.id, wallet.ownerId);
 
         if (isnull(wallet)) return res.status(500).json({ message: 'Failed to create wallet!' });
         res.status(200).send('Wallet created!');
@@ -60,6 +60,47 @@ app.get('/list/', async (req, res) => {
     });
 
     res.json(wallets);
+});
+
+app.get('/:address/transactions/', async (req, res) => {
+    const userid = res.locals.userid;
+    const wallet_address = req.params.address;
+
+    // They *need* to be authenticated here
+    if (isnull(userid)) return res.status(501).json({ message: 'No application specified!' });
+
+    try {
+        const transactions = await dbcon.transaction.findMany({
+            where: {
+                OR: [
+                    { debtorId: wallet_address },
+                    { creditorId: wallet_address }
+                ]
+            },
+            select: {
+                id: true,
+                debtorId: true,
+                creditorId: true,
+                value: true,
+                partialValue: true,
+                status: true,
+                createdOn: true,
+                lastUpdatedOn: true,
+                debtorHeadline: true,
+                debtorDescription: true
+            }
+        });
+
+        res.status(200).json({
+            message: 'got it',
+            data: transactions
+        });
+    } catch (e) {
+        res.status(500).json({message: 'fuck'});
+    }
+
+
+
 });
 
 // Export the app :D

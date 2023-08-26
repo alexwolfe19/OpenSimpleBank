@@ -14,6 +14,7 @@ app.use(Express.static('./public'));
 
 function start(callback: (app: Express.Application) => void) {
     app.listen(process.env.PORT || 3000, () => {
+        console.log('Server started!');
         callback(app);
     });
 }

@@ -2,7 +2,8 @@
 import { Router } from 'express';
 import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
-import logger from '../logger';
+// import logger from '../logger';
+import winston from 'winston';
 
 // Imports - Routes
 import accounts_route from './accounts';
@@ -12,6 +13,15 @@ import currency_route from './currency';
 import oauth2_route from './oauth2';
 import application_route from './applications';
 import { OptionalIdentificationMiddlewear } from '../middlewear/identitygate';
+import { v4 as uuidv4 } from 'uuid';
+
+// Poop
+const log_file_transport = new winston.transports.File({ filename: 'api.log', format: winston.format.simple() });
+const console_transport = new winston.transports.Console({ format: winston.format.cli() });
+
+const api_log = winston.createLogger({
+    transports: [ log_file_transport, console_transport ]
+});
 
 // Create our apps
 const api_route = Router();
@@ -28,7 +38,13 @@ api_route.use(cookieParser());
 
 // Log all traffic through the API
 api_route.use((req, res, next) => {
-    logger.info('API request received!', req.url);
+
+    const slog = api_log.child({ requestId: uuidv4() });
+
+    res.locals.logger = slog;
+
+    slog.info(`API Request received for "${req.url}"!`);
+    
     next();
 });
 

@@ -83,7 +83,7 @@ export async function canTokenCreateAccountFor(application: string, identity: st
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function whatUserInfoCanUserRead(userId: number, target: UserRefrence) : Promise<UserInfoAccess> {
-    console.log('Getting user information available for reading.', userId, target);
+    // console.log('Getting user information available for reading.', userId, target);
     let targetId: number = Number(target);
 
     if (typeof(target) == 'string') {
@@ -105,7 +105,7 @@ export async function whatUserInfoCanUserRead(userId: number, target: UserRefren
         membershipList: true
     };
 
-    console.log('Searching for permission records...');
+    // console.log('Searching for permission records...');
     const permissions = await dbcon.permissionRecord.findFirst({ where: {
         targetUserId: targetId,
         userId: userId
@@ -113,7 +113,7 @@ export async function whatUserInfoCanUserRead(userId: number, target: UserRefren
     if (isnull(permissions)) return UserInfoAccessDefaultGrant;
     const permissionList = permissions!.permissions;
 
-    console.log('Getting USER_READ_ACCESS', userId, targetId);
+    // console.log('Getting USER_READ_ACCESS', userId, targetId);
 
     const hasAllPermission = permissionList.includes(Permission.ALL) || targetId == userId;
 
@@ -260,6 +260,14 @@ export async function whatApplicationInformationCanTokenRead(identity: string, a
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
+/**
+ * So, there's an issue.
+ * I don't explicitly create a permission grant for each sub-resouce of the application.
+ * A user by default has the ALL grant on their application... which this doesn't even
+ * check for. How the hell was this working before?
+ * 
+ */
+
 export async function canUserMakeGrantFromCurrency(user: UserRefrence, currencyAddress: string) : Promise<boolean> {
     try {
         let userId: number = Number(user);

@@ -17,6 +17,10 @@ currency_route.use(OptionalIdentificationMiddlewear);
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 currency_route.get('/list/', async (req, res) => {
+    const logger = res.locals.logger;
+
+    logger.info('Received request to list currencies');
+
     const currency_list = await dbcon.currency.findMany({
         select: {
             id: true,
@@ -37,9 +41,10 @@ currency_route.get('/list/', async (req, res) => {
     });
 
     if (currency_list == null || currency_list == undefined) {
-        console.log('Failed to fetch currency!');
+        logger.warn('Failed to fetch currency!');
         res.status(500).json([]);
     } else {
+        logger.info('Fetched currency list');
         res.status(200).json(currency_list);
     }
 });
@@ -47,7 +52,8 @@ currency_route.get('/list/', async (req, res) => {
 currency_route.use(RestrictedAccessMiddlewear);
 
 currency_route.post('/', async (req, res) => {
-    console.log('Creating a new currency!');
+    const logger = res.locals.logger;
+    logger.info('Received request to create new currency');
     const userid =  res.locals.userid;
     const tokenKey = res.locals.tokenkey;
     const signSymbol =      assert(req.body.symbol, 'Unable to get symbol!');
@@ -122,7 +128,7 @@ currency_route.post('/:uuid/grant/', async (req, res) => {
 
         return res.status(200).json({ message: 'Grant created!', transaction_id: transaction.id });
     } catch(e) {
-        console.error('frick dude', e);
+        // console.error('frick dude', e);
         return res.status(500).json({ message: 'UwU i messed up' });
     }
 

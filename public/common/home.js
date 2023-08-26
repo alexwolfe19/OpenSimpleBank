@@ -91,7 +91,7 @@ function makeAccountActionColumn(address) {
     }
 
     addActionButton('Show Details', () => {
-
+        window.open(`/walletinfo.html?target=${address}`, 'walletmaker', 'popup=yes,width=500,height=500');
     });
 
     addActionButton('Make Transfer Source', () => {
