@@ -279,7 +279,26 @@ export async function canUserMakeGrantFromCurrency(user: UserRefrence, currencyA
             userId = tub!.id;
         }
 
-        const permissions = await dbcon.permissionRecord.findFirst({ where: { userId: userId, targetCurrencyId: currencyAddress }});
+        const permissions = await dbcon.permissionRecord.findFirst({ where: { 
+            AND: [
+                {
+                    userId: userId
+                },
+                {OR: [
+                    { targetCurrencyId: currencyAddress },
+                    { Application: {
+                        Permissions: {
+                            some: {
+                                userId: userId,
+                                targetCurrencyId: null
+                            }
+                        }
+                    } }
+                ]}
+            ]
+        }});
+
+
         if (isnull(permissions)) return false;
         const permissionList = permissions!.permissions;
         const allowed = permissionList.includes(Permission.ALL) || permissionList.includes(Permission.CURRENCY_ISSUE_GRANT);
@@ -293,3 +312,16 @@ export async function canUserMakeGrantFromCurrency(user: UserRefrence, currencyA
 export async function canTokenMakeGrantFromCurrency(identity: string, currencyAddress: string) : Promise<boolean> {
     return false;
 }
+
+
+
+
+
+
+// Rewriting everything to be less gay
+
+// export async function validatePermissionsForNode(permission: Permission, node_uri: string) {
+//     //   wallet://34f8681533dbff6a08653fbf2923f1e0d0f78ee2
+//     // currency://fd37c81a423ca6574113d0450965f9871df2347e
+//     //  account://be4f5715a92eac039dcdcd16bbad802394074d9e
+// }
