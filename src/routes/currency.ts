@@ -100,10 +100,20 @@ currency_route.post('/:uuid/grant/', async (req, res) => {
     const amount = Number(assert(req.body.amount));
     let allowed = false;
 
+    if (amount < 0)
+        return res.status(401).json({ message: 'Negative grants not allowed!' });
+
     // Check to see if one or the other is provided (if they have, they're **already validated**)
     if (isnull(tokenKey) && isnull(userid)) return res.status(401).json({ message: 'No authentication provided!' });
     else if (isnull(tokenKey) && !isnull(userid)) allowed = await canUserMakeGrantFromCurrency(userid, currencyAddress);
     else if (!isnull(tokenKey)) allowed = await canTokenMakeGrantFromCurrency(tokenKey, currencyAddress);
+
+    // Validate the wallet can receice grants from this currency
+    const target_wallet = await dbcon.wallet.findFirst({ where: { id: creditor } });
+    const source_currency = await dbcon.currency.findFirst({ where: { id: currencyAddress } });
+
+    if (target_wallet?.currencyId != source_currency?.id)
+        return res.status(401).json({ message: 'Currency ID mismatch!' });
 
     if (!allowed) return res.status(401).json({ message: 'You are not authorised to issue a grant!' });
 
