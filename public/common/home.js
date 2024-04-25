@@ -1,9 +1,9 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function sendPayment() {
-    const source = document.getElementById('grant-sources').value;
-    const dest = document.getElementById('grant-creditor').value;
-    const value = document.getElementById('grant-amount').value;
-    const message = document.getElementById('grant-message').value;
+    const source = document.getElementById('sources').value;
+    const dest = document.getElementById('creditor').value;
+    const value = document.getElementById('amount').value;
+    const message = document.getElementById('message').value;
 
 
     makePOSTRequest('transaction/', JSON.stringify({

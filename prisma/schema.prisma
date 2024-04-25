@@ -12,12 +12,12 @@ datasource db {
 
 // Identity Stuff
 model UserAccount {
-  id                   Int      @id @default(autoincrement())
+  id                   String      @id @default(cuid())
   username             String   @unique
   createdOn            DateTime @default(now())
   email                String?
   passwordHash         String
-  defaultApplicationId Int?
+  defaultApplicationId String?
 
   isAdmin Boolean @default(false)
   canLogin Boolean @default(true)
@@ -27,45 +27,17 @@ model UserAccount {
 
   // Virtual
   Tokens             Token[]
-  Sessions           Session[]
   DefaultApplication Application?            @relation(fields: [defaultApplicationId], references: [id], "primary")
   Memberships        ApplicationMembership[]
-}
-
-// Sessions - They're used for tracking/identitifcation IN THE BROWSER! Like tokens, but lame.
-model Session {
-  id      Int     @id @default(autoincrement())
-  key     String  @unique
-  tokenId String?
-  userId  Int?
-
-  createdOn DateTime  @default(now())
-  expiredOn DateTime?
-
-  revoked Boolean @default(false)
-
-  // Virtual
-  Token       Token?                @relation(fields: [tokenId], references: [identity])
-  User        UserAccount?          @relation(fields: [userId], references: [id])
-  Data        SessionStorageEntry[]
-  HTTPRecords HTTPLogEntry[]
-}
-
-model SessionStorageEntry {
-  sessionKey String
-  key        String
-  body       Json?
-
-  // Virtual
-  Session Session @relation(fields: [sessionKey], references: [key])
-
-  @@unique([sessionKey, key])
+  // Permissions PermissionRecord[]
 }
 
 model Token {
   identity      String @id @default(uuid())
-  userId        Int?
-  applicationId Int?
+  userId        String?
+  applicationId String?
+
+  isUserToken Boolean @default(false)
 
   secretHash String
 
@@ -75,15 +47,15 @@ model Token {
   revoked       Boolean @default(false)
   authenticated Boolean @default(false)
 
+  permissions String[]
+
   // Virtual
   User        UserAccount?       @relation(fields: [userId], references: [id])
   Application Application?       @relation(fields: [applicationId], references: [id])
-  Sessions    Session[]
-  Permissions PermissionRecord[]
 }
 
 model Application {
-  id         Int     @id @default(autoincrement())
+  id                   String      @id @default(cuid())
   isPublic   Boolean @default(false)
   isInternal Boolean @default(false)
 
@@ -99,42 +71,21 @@ model Application {
   MembersWhoDefaulted UserAccount[]           @relation("primary")
   Wallets             Wallet[]
   Currencies          Currency[]
-  Permissions         PermissionRecord[]
 }
 
-model PermissionRecord {
-  id            Int  @id @default(autoincrement())
+// For storing LONG TERM permissions
+// model PermissionRecord {
+//   id                   String      @id @default(cuid())
+//   userId String
 
-  // Owners
-  applicationId Int?
-  userId        Int?
-  tokenId       Int?
-  isUserToken   Boolean @default(false)
+//   permissions Permission[]
 
-  @@unique([applicationId, userId, tokenId])
-
-  // Targets
-  targetTokenId    String?
-  targetBankId     Int?
-  targetWalletId   String?
-  targetAssetId    Int?
-  targetCurrencyId String?
-  targetUserId Int?
-
-  permissions Permission[]
-
-  // Virtual
-  Application Application? @relation(fields: [applicationId], references: [id])
-  Token       Token?       @relation(fields: [targetTokenId], references: [identity])
-  // BANK
-  Wallet      Wallet?      @relation(fields: [targetWalletId], references: [id])
-  // ASSET
-  Currency    Currency?    @relation(fields: [targetCurrencyId], references: [id])
-}
+//   User UserAccount @relation(fields: [userId], references: [id])
+// }
 
 model ApplicationMembership {
-  applicationId Int
-  accountId     Int
+  applicationId String
+  accountId     String
   joinedOn      DateTime @default(now())
 
   isOwner Boolean @default(false)
@@ -162,9 +113,6 @@ model HTTPLogEntry {
 
   remoteAddress String?
   path          String?
-
-  // Virtual
-  Session Session? @relation(fields: [actorToken], references: [key])
 }
 
 model APIEventLog {
@@ -180,9 +128,9 @@ model APIEventLog {
 // Finance Stuff
 
 model Wallet {
-  id         String  @id @default(uuid())
+  id                   String      @id @default(cuid())
   balance    Int     @default(0)
-  ownerId    Int
+  ownerId    String
   currencyId String
   nickname   String?
 
@@ -191,11 +139,10 @@ model Wallet {
   Debits      Transaction[]      @relation("debits")
   Credits     Transaction[]      @relation("credits")
   Currency    Currency           @relation(fields: [currencyId], references: [id])
-  Permissions PermissionRecord[]
 }
 
 model Transaction {
-  id                String            @id @default(uuid())
+  id                   String      @id @default(cuid())
   debtorId          String?
   creditorId        String?
   value             Int               @default(0)
@@ -226,8 +173,8 @@ enum TransactionStatus {
 }
 
 model Currency {
-  id      String @id @default(uuid())
-  ownerId Int
+  id                   String      @id @default(cuid())
+  ownerId String
   public Boolean @default(true)
 
   currencySign String
@@ -242,125 +189,124 @@ model Currency {
   // Owner
   Owner        Application        @relation(fields: [ownerId], references: [id])
   WalletsUsing Wallet[]
-  Permissions  PermissionRecord[]
 }
 
-enum Permission {
-  ALL
+// enum Permission {
+//   ALL
 
-  // Account
-  ACCOUNT_LOGIN
-  ACCOUNT_CREATE
-  ACCOUNT_FORGET_PASSWORD
-  ACCOUNT_LIST_ALL
+//   // Account
+//   ACCOUNT_LOGIN
+//   ACCOUNT_CREATE
+//   ACCOUNT_FORGET_PASSWORD
+//   ACCOUNT_LIST_ALL
 
-  // Account/Token
-  ACCOUNT_TOKENS_LIST
-  ACCOUNT_TOKENS_CREATE
-  ACCOUNT_TOKENS_DELETE
-  ACCOUNT_TOKENS_DELETE_ALL
-  ACCOUNT_TOKENS_MODIFY
-  ACCOUNT_TOKENS_MODIFY_ALL
+//   // Account/Token
+//   ACCOUNT_TOKENS_LIST
+//   ACCOUNT_TOKENS_CREATE
+//   ACCOUNT_TOKENS_DELETE
+//   ACCOUNT_TOKENS_DELETE_ALL
+//   ACCOUNT_TOKENS_MODIFY
+//   ACCOUNT_TOKENS_MODIFY_ALL
 
-  // Account/Session
-  ACCOUNT_SESSION_LIST
-  ACCOUNT_SESSION_DELETE
-  ACCOUNT_SESSION_READ
+//   // Account/Session
+//   ACCOUNT_SESSION_LIST
+//   ACCOUNT_SESSION_DELETE
+//   ACCOUNT_SESSION_READ
 
-  // Account/Memberships
-  ACCOUNT_MEMBERSHIP_LIST
-  ACCOUNT_MEMBERSHIP_JOIN
-  ACCOUNT_MEMBERSHIP_LEAVE
-  ACCOUNT_MEMBERSHIP_READ
+//   // Account/Memberships
+//   ACCOUNT_MEMBERSHIP_LIST
+//   ACCOUNT_MEMBERSHIP_JOIN
+//   ACCOUNT_MEMBERSHIP_LEAVE
+//   ACCOUNT_MEMBERSHIP_READ
 
-  // Account/set
-  ACCOUNT_WRITE_ALL
-  ACCOUNT_WRITE_USERNAME
-  ACCOUNT_WRITE_PASSWORD
-  ACCOUNT_WRITE_DEFAULT_APPLICATION
+//   // Account/set
+//   ACCOUNT_WRITE_ALL
+//   ACCOUNT_WRITE_USERNAME
+//   ACCOUNT_WRITE_PASSWORD
+//   ACCOUNT_WRITE_DEFAULT_APPLICATION
 
-  // Account/get
-  ACCOUNT_READ_ALL
-  ACCOUNT_READ_USERNAME
-  ACCOUNT_READ_EMAIL
-  ACCOUNT_READ_CREATION
-  ACCOUNT_READ_DEFAULT_APPLICATION
+//   // Account/get
+//   ACCOUNT_READ_ALL
+//   ACCOUNT_READ_USERNAME
+//   ACCOUNT_READ_EMAIL
+//   ACCOUNT_READ_CREATION
+//   ACCOUNT_READ_DEFAULT_APPLICATION
 
-  // Session
-  SESSION_LIST
-  SESSION_VIEW
-  SESSION_VIEW_ALL
-  SESSION_DELETE
-  SESSION_DELETE_ALL
+//   // Session
+//   SESSION_LIST
+//   SESSION_VIEW
+//   SESSION_VIEW_ALL
+//   SESSION_DELETE
+//   SESSION_DELETE_ALL
 
-  // Currency
-  CURRENCY_CREATE
-  CURRENCY_DISTROY
+//   // Currency
+//   CURRENCY_CREATE
+//   CURRENCY_DISTROY
 
-  // Currency/List
-  CURRENCY_LIST
-  CURRENCY_LIST_PUBLIC
+//   // Currency/List
+//   CURRENCY_LIST
+//   CURRENCY_LIST_PUBLIC
 
-  // Currency/Info
-  CURRENCY_INFO_READ_BASIC
-  CURRENCY_INFO_READ_FORMATTING
-  CURRENCY_INFO_READ_VOLUME
-  CURRENCY_INFO_READ_LIQUIDITY
+//   // Currency/Info
+//   CURRENCY_INFO_READ_BASIC
+//   CURRENCY_INFO_READ_FORMATTING
+//   CURRENCY_INFO_READ_VOLUME
+//   CURRENCY_INFO_READ_LIQUIDITY
 
-  CURRENCY_INFO_WRITE_FORMATTING
-  CURRENCY_INFO_WRITE_VOLUME
-  CURRENCY_INFO_WRITE_VOLUME_IGNORELIMITS
+//   CURRENCY_INFO_WRITE_FORMATTING
+//   CURRENCY_INFO_WRITE_VOLUME
+//   CURRENCY_INFO_WRITE_VOLUME_IGNORELIMITS
 
-  CURRENCY_ADMIN_LIST
-  CURRENCY_ADMIN_ADD
-  CURRENCY_ADMIN_REMOVE
+//   CURRENCY_ADMIN_LIST
+//   CURRENCY_ADMIN_ADD
+//   CURRENCY_ADMIN_REMOVE
 
-  CURRENCY_ISSUE_GRANT
+//   CURRENCY_ISSUE_GRANT
 
-  // Application
-  APPLICATION_CREATE
-  APPLICATION_LIST
-  APPLICATION_LIST_PUBLIC
-  APPLICATION_DELETE
-  APPLICATION_DELETE_ALL
+//   // Application
+//   APPLICATION_CREATE
+//   APPLICATION_LIST
+//   APPLICATION_LIST_PUBLIC
+//   APPLICATION_DELETE
+//   APPLICATION_DELETE_ALL
 
-  APPLICATION_TOKEN_READ_INFO
-  APPLICATION_TOKEN_LIST
-  APPLICATION_TOKEN_CREATE
-  APPLICATION_TOKEN_DELETE
+//   APPLICATION_TOKEN_READ_INFO
+//   APPLICATION_TOKEN_LIST
+//   APPLICATION_TOKEN_CREATE
+//   APPLICATION_TOKEN_DELETE
 
-  APPLICATION_INFO_READ_NAME
-  APPLICATION_INFO_READ_DESCRIPTION
-  APPLICATION_INFO_READ_IMAGE_URI
-  APPLICATION_INFO_READ_ISPUBLIC
-  APPLICATION_INFO_READ_ISINTERNAL
+//   APPLICATION_INFO_READ_NAME
+//   APPLICATION_INFO_READ_DESCRIPTION
+//   APPLICATION_INFO_READ_IMAGE_URI
+//   APPLICATION_INFO_READ_ISPUBLIC
+//   APPLICATION_INFO_READ_ISINTERNAL
 
-  APPLICATION_INFO_WRITE_NAME
-  APPLICATION_INFO_WRITE_DESCRIPTION
-  APPLICATION_INFO_WRITE_IMAGE_URI
-  APPLICATION_INFO_WRITE_ISPUBLIC
+//   APPLICATION_INFO_WRITE_NAME
+//   APPLICATION_INFO_WRITE_DESCRIPTION
+//   APPLICATION_INFO_WRITE_IMAGE_URI
+//   APPLICATION_INFO_WRITE_ISPUBLIC
 
-  // Transactions
-  TRANSACTION_LIST
-  TRANSACTION_CREATE
+//   // Transactions
+//   TRANSACTION_LIST
+//   TRANSACTION_CREATE
 
-  TRANSACTION_INFO_READ_DEBTOR
-  TRANSACTION_INFO_READ_CREDITOR
-  TRANSACTION_INFO_READ_VALUE
-  TRANSACTION_INFO_READ_PARTIAL_VALUE
-  TRANSACTION_INFO_READ_STATUS
-  TRANSACTION_INFO_READ_CREATION_TIMESTAMP
-  TRANSACTION_INFO_READ_UPDATE_TIMESTAMP
-  TRANSACTION_INFO_READ_HEADLINE
-  TRANSACTION_INFO_READ_DESCRIPTION
+//   TRANSACTION_INFO_READ_DEBTOR
+//   TRANSACTION_INFO_READ_CREDITOR
+//   TRANSACTION_INFO_READ_VALUE
+//   TRANSACTION_INFO_READ_PARTIAL_VALUE
+//   TRANSACTION_INFO_READ_STATUS
+//   TRANSACTION_INFO_READ_CREATION_TIMESTAMP
+//   TRANSACTION_INFO_READ_UPDATE_TIMESTAMP
+//   TRANSACTION_INFO_READ_HEADLINE
+//   TRANSACTION_INFO_READ_DESCRIPTION
 
-  // Wallets
-  WALLET_LIST
-  WALLET_CREATE
-  WALLET_DELETE
-  WALLET_MEMBER_LIST
-  WALLET_MEMBER_REMOVE
-  WALLET_MEMBER_ADD
-  WALLET_MEMBER_LIST_PERMS
-  WALLET_MEMBER_CHANGE_PERMS
-}
+//   // Wallets
+//   WALLET_LIST
+//   WALLET_CREATE
+//   WALLET_DELETE
+//   WALLET_MEMBER_LIST
+//   WALLET_MEMBER_REMOVE
+//   WALLET_MEMBER_ADD
+//   WALLET_MEMBER_LIST_PERMS
+//   WALLET_MEMBER_CHANGE_PERMS
+// }

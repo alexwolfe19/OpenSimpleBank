@@ -2,7 +2,7 @@
 import { Prisma, PrismaClient, TransactionStatus } from '@prisma/client';
 import { ifndef, isnull } from './general';
 import { BalanceInsufficentError, CurrencyMismatchError, NoSuchWalletError, UserUnauthorisedError } from './errors';
-import { canTokenBeginTransactionFor, canUserBeginTransactionFor } from './permissions';
+import { canStartTransactionFor } from './permissions';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -21,18 +21,22 @@ async function getWallet(address: string) : Promise<Wallet> {
 }
 
 // Public Methods
-export async function beginTransaction(debtorAddress: string, creditorAddress: string, transaction_value: number, userId?: number, tokenKey?: string) : Promise<string> {
+export async function beginTransaction(debtorAddress: string, creditorAddress: string, transaction_value: number, actorToken: string) : Promise<string> {
     // Step 1. Get our wallets
-    const source_wallet: Wallet = await getWallet(debtorAddress);
-    const destination_wallet: Wallet = await getWallet(creditorAddress);
+    const source_wallet = await dbcon.wallet.findUnique({where: { id: debtorAddress }});
+    const destination_wallet = await dbcon.wallet.findUnique({where: { id: creditorAddress }});
 
-    ifndef(source_wallet, () => { throw new NoSuchWalletError(debtorAddress); });
-    ifndef(destination_wallet, () => { throw new NoSuchWalletError(creditorAddress); });
+    ifndef(source_wallet, () => { 
+        console.log('No debtor!');
+        throw new NoSuchWalletError(debtorAddress); 
+    });
+    ifndef(destination_wallet, () => { 
+        console.log('No creditor!');
+        throw new NoSuchWalletError(creditorAddress); 
+    });
 
     // Step 2. Validate if the current user is allowed to make transactions with that wallet
-    let authorised = false;
-    if (isnull(tokenKey) && !isnull(userId)) authorised = await canUserBeginTransactionFor(userId!, debtorAddress); 
-    else if (!isnull(tokenKey)) authorised = await canTokenBeginTransactionFor(tokenKey!, debtorAddress);
+    let authorised = canStartTransactionFor(actorToken, debtorAddress);
 
     if (!authorised) throw new UserUnauthorisedError();
 

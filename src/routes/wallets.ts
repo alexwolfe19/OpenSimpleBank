@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { PrismaClient } from '@prisma/client';
 import { assert, isnull } from '../utils/general';
+import { TokenData } from '../utils/identity';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -14,10 +15,11 @@ const app = Router();
 app.use(RestrictedAccessMiddlewear);
 
 app.post('/', async (req, res) => {
-    // console.log('HE WANTS A WALLET!');
+    const tokend: TokenData = res.locals.tokenData;
+    if (isnull(tokend)) return res.status(401).json({message: 'Not authenticated!'});
 
-    const userid: number = res.locals.userid;
     let applicationId = req.body.application_id;
+    let userid = tokend.userId;
 
     if (isnull(applicationId) || req.body.application_id == '@me') {
         if (isnull(userid)) return res.status(501).json({ message: 'No application specified!' });
@@ -45,13 +47,13 @@ app.post('/', async (req, res) => {
 });
 
 app.get('/list/', async (req, res) => {
-    const userid: number = res.locals.userid;
+    const userid: string = res.locals.userid;
     const targetId: string = req.body.owner_id;
 
-    let query: { ownerId?: number, Memberships?: { some?: { accountId?: number } } } = { ownerId: Number(targetId) };
+    let query: { ownerId?: string, Memberships?: { some?: { accountId?: string } } } = { ownerId: targetId };
 
     if (targetId == '@me' || isnull(targetId) || targetId == '') {
-        query = { Memberships: { some: {accountId: userid} }};
+        query = { Memberships: { some: { accountId: userid} }};
     }
 
     const wallets = await dbcon.wallet.findMany({
