@@ -5,6 +5,8 @@ import { RestrictedAccessMiddlewear } from '../middlewear/identitygate';
 import { PrismaClient } from '@prisma/client';
 import { beginTransaction } from '../utils/transaction';
 import { BalanceInsufficentError, CurrencyMismatchError, NoSuchWalletError, UserUnauthorisedError } from '../utils/errors';
+import { isnull } from '../utils/general';
+import { TokenData } from '../utils/identity';
 
 // Get database connection
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -17,15 +19,16 @@ app.use(RestrictedAccessMiddlewear);
 
 
 app.post('/', async (req, res) => {
-    console.log('Creating a transaction');
-    const userid: number = res.locals.userid;
-    const tokenkey = res.locals.tokenkey;
+    // console.log('Creating a transaction');
+    const tokend: TokenData = res.locals.tokenData;
     const source_wallet_key = req.body.debtor;
     const dest_wallet_key = req.body.creditor;
     const trans_value = Number(req.body.value);
 
+    if (isnull(tokend)) return res.status(401).json({message: 'Not authorised!'});
+
     try {
-        const transaction_id = await beginTransaction(source_wallet_key, dest_wallet_key, trans_value, userid, tokenkey);
+        const transaction_id = await beginTransaction(source_wallet_key, dest_wallet_key, trans_value, tokend.publicKey);
         return res.json({
             code: 'okay',
             message: 'Transaction created!',

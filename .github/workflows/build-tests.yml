@@ -1,0 +1,39 @@
+name: Automatic Build Testing
+on:
+  push:
+    branches: ["main", "beta", "alpha"]
+  pull_request:
+    branches: ["main"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "postgresql://opensimplebank:password@localhost:5432/opensimplebank?schema=public"
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_USER: opensimplebank
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: opensimplebank
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.6.x
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Install package dependencies
+        run: npm ci
+      - name: Push database configuration
+        run: npm push:prisma
+      - name: Run tests
+        run: npm test
+      - name: Build
+        run: npm run build
