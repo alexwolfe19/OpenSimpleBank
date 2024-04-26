@@ -14,13 +14,7 @@ import application_route from './applications';
 import { OptionalIdentificationMiddlewear } from '../middlewear/identitygate';
 import { v4 as uuidv4 } from 'uuid';
 
-// Poop
-const log_file_transport = new winston.transports.File({ filename: 'api.log', format: winston.format.simple() });
-const console_transport = new winston.transports.Console({ format: winston.format.cli() });
-
-const api_log = winston.createLogger({
-    transports: [ log_file_transport, console_transport ]
-});
+import { api_log, http_log } from '../logger';
 
 // Create our apps
 const api_route = Router();
@@ -37,14 +31,10 @@ api_route.use(cookieParser());
 
 // Log all traffic through the API
 api_route.use((req, res, next) => {
-
-    const slog = api_log.child({ requestId: uuidv4() });
-
-    res.locals.logger = slog;
-
+    const slog = http_log.child({ requestId: uuidv4() });               // Generate a log specific to this request
+    res.locals.logger = slog;                                           // Put the logger in the locals for the upcoming routes
     slog.info(`API Request received for "${req.url}"!`);
-    
-    next();
+    next();                                                             // Move on
 });
 
 // Validate their identity

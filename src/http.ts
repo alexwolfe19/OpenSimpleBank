@@ -9,7 +9,6 @@ const app = Express();
 app.use('/api/', api_route);
 
 // Serve static content, unless disabled
-console.log('Exposing static content!');
 app.use(Express.static('./public'));
 
 function start(callback: (app: Express.Application) => void) {

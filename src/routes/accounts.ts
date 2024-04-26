@@ -2,10 +2,11 @@
 import { Router } from 'express';
 import { TokenData, createUser, generateToken, validateUserLogin } from '../utils/identity';
 import { OptionalIdentificationMiddlewear, RestrictedAccessMiddlewear } from '../middlewear/identitygate';
-import { InvalidLoginCredentialsError, NoSuchUserError } from '../utils/errors';
-import { PrismaClient } from '@prisma/client';
+import { InvalidLoginCredentialsError, InvalidPasswordError, InvalidUsernameError, NoSuchUserError } from '../utils/errors';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { assert, isnull } from '../utils/general';
 import { canUserLogin } from '../utils/permissions';
+import winston from 'winston';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -14,52 +15,70 @@ const dbcon = new PrismaClient();
 const app = Router();
 
 app.post('/signup/', async (req, res) => {
-    const logger = res.locals.logger;
-    logger.info('Received request to create account!');
-    const username: string = req.body.username;
-    const password: string = req.body.password;
+    const logger: winston.Logger = res.locals.logger;
+    logger.info('Processing user signup request.');
+    const username: string | undefined = req.body.username;
+    const password: string | undefined = req.body.password;
+
+    if (username == undefined || password == undefined) {
+        logger.warn("Username or password not provided!");
+        return res.status(401).json({ message: 'Missing username or password!' });
+    }
     
     createUser(username, password, undefined).then(() => {
-        logger.info('User account created!');
-        res.json({ message: 'Account created!' });
+        logger.info('Account creation successful');
+        res.status(200).json({ message: 'Account created!' });
     }).catch((e) => {
-        logger.error('Failed to create user account!');
+        logger.error("Account creation failed!");
+        if (e instanceof InvalidUsernameError)
+            logger.error("REASON: Invalid username supplied.");
+        if (e instanceof InvalidPasswordError)
+            logger.error("REASON: Invalid password supplied.");
+        if (e instanceof Prisma.PrismaClientKnownRequestError)
+            logger.error(`REASON: Prisma query failed with code ${e.code}, message "${e.message}", meta: (${e.meta})`);
         logger.error(e);
-        res.status(500).json({ message: 'Unknown error creating account' });
+        res.status(500).json({ message: 'Failed to create account!' });
     });
 });
 
 app.post('/login/', async (req, res) => {
     const logger = res.locals.logger;
-    const username: string = req.body.username;
-    const password: string = req.body.password;
+    const username: string | undefined = req.body.username;
+    const password: string | undefined = req.body.password;
 
-    logger.info('Request for username/password login received');
+    logger.info('Processing user login request');
+
+    if (username == undefined || password == undefined) {
+        logger.warn("No username or password supplied!");
+        return res.status(401).json({ message: 'Missing username or password!' });
+    }
+
     validateUserLogin(username, password).then(async (id) => {
-        logger.info('Credentials are valid');
+        logger.info('Validated credentials.');
 
         const allowed = await canUserLogin(id);
 
-        const useracct = await dbcon.userAccount.findFirst({where:{id:id}});
-        const defaultorg = useracct?.defaultApplicationId;
-
         if (allowed) {
-            logger.info('Account is permitted to login');
-            generateToken(id, defaultorg ?? undefined).then((token) => {
+            logger.info('Account is permitted to login.');
+
+            const useracct = await dbcon.userAccount.findFirst({where:{id:id}});
+            const defaultorg: string | undefined = useracct?.defaultApplicationId ?? undefined; // If it returns null, freaking JS being cringe
+
+            generateToken(id, defaultorg).then((token) => {
                 const tokenData = token;
                 const tokenString = Buffer.from(JSON.stringify(tokenData), 'utf-8').toString('base64');
 
-                logger.info('Account token generated');
+                logger.info('Account login successful.');
                 res.status(200)
                     .cookie('token', tokenString, { httpOnly: true, expires: tokenData.expiresOn })
                     .json({message: 'Login successful!'});
             }).catch((e) => {
-                logger.warn('Failed to generate account token!');
-                logger.warn(e);
+                logger.warn('Account login failed!');
+                logger.error(e);
                 res.status(500).json({ message: 'Unable to generate token' });
             });
         } else {
-            logger.warn('Account is restricted from logging in!');
+            logger.warn('Account is restricted from logging in.');
             return res.status(401).json({ message: 'You are forbidden from logging in' });
         }
     }).catch((e) => {
@@ -78,107 +97,58 @@ app.post('/login/', async (req, res) => {
 });
 
 app.get('/is-logged-in/', RestrictedAccessMiddlewear, async (req, res) => {
-    const logger = res.locals.logger;
-    logger.info('Heartbeat!');
-    res.send('Hey baby!');
+    res.send('');
 });
 
 app.use(OptionalIdentificationMiddlewear);
 
-// app.get('/:username/', async (req, res) => {
-//     const logger = res.locals.logger;
-//     const username = assert(req.params.username);
-//     const userid = res.locals.userid;
-//     const tokenKey = res.locals.tokenkey;
-
-//     let filter: { username?: string, id?: number } = { username: username };
-            
-//     logger.info(`Attempting to fetch data on user "${username}"`);
-
-//     try {
-//         if (username == '@me') {
-//             // console.log('They want themselves');
-//             logger.info('Attempting to get ID for current account');
-//             if (isnull(userid)) {
-//                 logger.warn('No identity currently logged in!');
-//                 return res.status(401).json({message: 'You are not logged in!'});
-//             }
-//             filter = { id: userid };
-//         }
-
-//         try {
-//             logger.info('Attempting to fetch permissions');
-//             if (isnull(tokenKey) && !isnull(userid)) permissions = await whatUserInfoCanUserRead(userid, username);
-//             else if (!isnull(tokenKey)) permissions = await whatUserInfoCanTokenRead(tokenKey, username);
-//             else logger.warn('Unauthenticated!');
-//         } catch (e) { logger.warn('Failed to find any permission records!'); }
-
-//         // console.log('qprep', isnull(userid), isnull(tokenKey));
-
-//         const query = { 
-//             id: true, 
-//             username: permissions.username, 
-//             createdOn: permissions.createdOn, 
-//             email: permissions.email, 
-//             defaultApplicationId: permissions.defaultApplicationId
-//         };
-        
-//         // console.log('Got them');
-
-//         logger.info('Searching for user account in database');
-//         const account = await dbcon.userAccount.findFirst({ where: filter, select: query });
-
-//         if (isnull(account)) {
-//             logger.warn('Unable to find any such user!');
-//             return res.status(404).json({ message: 'Unable to find user!', username: username });
-//         }
-//         logger.info('User found!');
-//         return res.status(200).json({ message: 'Found user', data: account });
-//     } catch (e) {
-//         logger.error(e);
-//         return res.status(500).send('');
-//     }
-// });
-
 app.get('/:username/applications/', async (req, res) => {
-    const logger = res.locals.logger;
+    const logger: winston.Logger = res.locals.logger;
     let tokend: TokenData = res.locals.tokenData;
-    const username = assert(req.params.username);
+    const username: string | undefined = req.params.username;
     const onlyShowOwnedApplications = req.query.owned;
 
-    logger.info(`Request to get all application's belonging to "${username}"`);
+    if (username == undefined)  // If this fails I have no fucking clue whats going on...
+        return res.status(400).json({ message: 'Missing required setting' });
+    logger.info(`Processing query for listing all applications for (${username})`);
 
     try {
-        let filter: { id?: string, username?: string, isOwner?: boolean } = (onlyShowOwnedApplications) ? { username: username, isOwner: true } : { username: username };
+        let filter: { 
+            id?: string, 
+            username?: string, 
+            isOwner?: boolean 
+        } = (onlyShowOwnedApplications) 
+            ? { username: username, isOwner: true } 
+            : { username: username };
 
         if (username == '@me') {
-            if (isnull(tokend)) return res.status(401).json({message: 'You are not logged in!'});
-            filter = (onlyShowOwnedApplications) ? { id: tokend.userId, isOwner: true } : { id: tokend.userId };
+            if (isnull(tokend)) return res.status(401).json({message: 'Not authenticated.'});
+            filter = (onlyShowOwnedApplications) 
+                ? { id: tokend.userId, isOwner: true } 
+                : { id: tokend.userId };
         }
 
-        try {
-            // if (isnull(actorToken) && !isnull(actorId)) permissions = await whatUserInfoCanUserRead(actorId, username);
-            // else if (!isnull(actorToken)) permissions = await whatUserInfoCanTokenRead(actorToken, username);
-            // else console.warn('Unauthenticated!');
-        } catch (e) { logger.error('Failed to find permission records!'); }
-
-        logger.info('Searching for applications in database');
         const applications = await dbcon.application.findMany({ 
             where: { Memberships: { some: { Account: filter } }},
             select: { id: true, displayName: true, description: true, icon_uri: true, isPublic: true }
         });
-        logger.info('Applications fetched successfully');
+
+        logger.info('Successfully processed request!');
         return res.status(200).json(applications);
     } catch(e) {
+        logger.error('Query failed to process.');
         logger.error(e);
-        return res.json(500).json({ message: 'I messed up daddy' });
+        return res.json(500).json({ message: 'Failed to process query.' });
     }
 });
 
 app.get('/:username/currencies/', async (req, res) => {
-    const logger = res.locals.logger;
-    const username = req.params.username;
+    const logger: winston.Logger = res.locals.logger;
+    const username: string | unknown = req.params.username;
     const tokend: TokenData = res.locals.tokenData;
+
+    if (username == undefined)
+        return res.status(400).json({});
 
     logger.info(`Received request to list currencies belonging to user "${username}"`);
 
@@ -211,7 +181,7 @@ app.get('/:username/currencies/', async (req, res) => {
         return res.status(200).json({ message: 'Fetched list of owned currencies!', data: list });
     } catch (e) {
         logger.error(e);
-        return res.json(500).json({ message: 'I messed up daddy' });
+        return res.json(500).json({});
     }
 });
 

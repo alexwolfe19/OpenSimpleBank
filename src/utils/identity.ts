@@ -54,15 +54,6 @@ export async function createUser(username: string, password: string, email: stri
         data: { applicationId: defaultApplication.id, accountId: account.id, isOwner: true }
     });
 
-    // await dbcon.permissionRecord.create({
-    //     data: {
-    //         applicationId: defaultApplication.id,
-    //         userId: account.id,
-    //         permissions: [Permission.ALL]
-    //     }
-    // });
-
-
     return account;
 }
 
