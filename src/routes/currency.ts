@@ -7,6 +7,7 @@ import { createCurrency } from '../utils/currency';
 import { assert, isnull } from '../utils/general';
 import { canMakeCurrencyForApplication, canMakeGrantForCurrency, canMakeWalletForCurrency } from '../utils/permissions';
 import { TokenData } from '../utils/identity';
+import winston from 'winston';
 
 // Get database connection
 const dbcon = new PrismaClient();
@@ -18,7 +19,7 @@ currency_route.use(OptionalIdentificationMiddlewear);
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 currency_route.get('/list/', async (req, res) => {
-    const logger = res.locals.logger;
+    const logger: winston.Logger = res.locals.logger;
 
     logger.info('Received request to list currencies');
 
@@ -53,96 +54,132 @@ currency_route.get('/list/', async (req, res) => {
 currency_route.use(RestrictedAccessMiddlewear);
 
 currency_route.post('/', async (req, res) => {
-    const logger = res.locals.logger;
+    const logger: winston.Logger = res.locals.logger;
     logger.info('Received request to create new currency');
-    const signSymbol =      assert(req.body.symbol, 'Unable to get symbol!');
-    const grouping =        Number(req.body.grouping);
-    const decimalCount =    Number(req.body.decimals);
-    const shortName =       assert(req.body.short_name, 'Unable to get short name');
-    const longName =        assert(req.body.long_name, 'Unable to get long name');
-    const volume =          Number(assert(req.body.volume, 'Unable to get volume'));
-    const tokend: TokenData = res.locals.tokenData;
-    let applicationId = req.body.application_id;
+    const signSymbol: string | undefined = req.body.symbol;
+    const grouping: number | undefined = req.body.grouping;
+    const decimalCount: number | undefined = req.body.decimals;
+    const shortName: string | undefined = req.body.short_name;
+    const longName: string | undefined = req.body.long_name;
+    const volume: number | undefined = req.body.volume;
+    const tokend: TokenData | undefined = res.locals.tokenData;
+    let applicationId: string | undefined = req.body.application_id;
 
-    let allowed = false;
+    if (tokend == undefined) 
+        return res.status(401).json({ message: 'No authentication provided!' });
 
-    if (isnull(applicationId) || req.body.application_id == '' || req.body.application_id == '@me') {
-        // assert(tokend.userId, 'No user ID is specified!');
-
-        // const user = await dbcon.userAccount.findUnique({ where: { id: tokend.userId }, select: { defaultApplicationId: true } });
-        // applicationId = user!.defaultApplicationId!;
-        applicationId = tokend.applicationId;
+    if (applicationId == '@me') {
+        if (tokend.userId == undefined)
+            return res.status(401).json({ message: 'Attempting to use @me on undefined user' });
+        const user = await dbcon.userAccount.findUnique({
+            where: { id: tokend.userId },
+            select: { defaultApplicationId: true }
+        });
+        if (user == undefined)
+            return res.status(401).json({ message: 'Attempting to use @me on undefined user' });
     }
 
-    console.table(tokend);
+    if (applicationId == undefined)
+        return res.status(400).json({ message: 'Missing application_id!' });
 
-    if (isnull(applicationId)) return res.status(401).json({message: 'No application ID provided!'});
+    if (signSymbol == undefined)
+        return res.status(400).json({ message: 'Missing symbol sign' });
 
-    if (isnull(tokend)) return res.status(401).json({ message: 'No authentication provided!' });
-    allowed = await canMakeCurrencyForApplication(tokend.publicKey, applicationId);
+    if (shortName == undefined)
+        return res.status(400).json({ message: 'Missing short name' });
 
-    if (!allowed) return res.status(401).json({ message: 'You are not authorised to create a currency for that application!', applicationId: applicationId });
+    if (longName == undefined)
+        return res.status(400).json({ message: 'Missing long name' });
+
+    let allowed = await canMakeCurrencyForApplication(tokend.publicKey, applicationId);
+
+    if (!allowed) 
+        return res
+            .status(401)
+            .json({ 
+                message: 'You are not authorised to create a currency for that application!', 
+                applicationId: applicationId 
+            });
 
     try {
         const currencyid = await createCurrency(applicationId, signSymbol, shortName, longName, grouping, decimalCount, volume);
-        res.status(200).json({
+        return res.status(200).json({
             message: 'Currency created!',
             refrence: currencyid
         });
     } catch (e) {
-        console.error(e);
+        logger.error(e);
+        return res.status(500).json({});
     }
 });
 
 currency_route.post('/:uuid/grant/', async (req, res) => {
-    const tokend: TokenData = res.locals.tokenData;
-    const currencyAddress =     assert(req.params.uuid, '[GRANT] No currency address!');
-    const message = (req.body.message);
-    const creditor = assert(req.body.creditor);
-    const amount = Number(assert(req.body.amount));
-    let allowed = false;
+    const logger: winston.Logger = res.locals.logger;
+    const tokend: TokenData | undefined = res.locals.tokenData;
+    const currencyAddress: string = req.params.uuid;
+    const message: string | undefined = req.body.message;
+    const creditor: string | undefined = req.body.creditor;
+    const ammount: number | undefined = req.body.amount;
 
-    if (amount < 0)
-        return res.status(401).json({ message: 'Negative grants not allowed!' });
+    logger.info('Processing request to issue grant');
 
-    // Check to see if one or the other is provided (if they have, they're **already validated**)
-    if (isnull(tokend)) return res.status(401).json({ message: 'No authentication provided!' });
-    else allowed = await canMakeGrantForCurrency(tokend, currencyAddress);
+    if (tokend == undefined)
+        return res.status(401).json({ message: 'No authentication provided!' });
+
+    if (ammount == undefined)
+        return res.status(400).json({ message: 'No ammount variable provided!' });
+    else if (ammount < 0)
+        return res.status(400).json({ message: 'Negative grants not allowed!' });
+
+    if (creditor == undefined)
+        return res.status(400).json({ message: 'No creditor defined' });
+
+    let allowed = await canMakeGrantForCurrency(tokend, currencyAddress);
 
     // Validate the wallet can receice grants from this currency
     const target_wallet = await dbcon.wallet.findFirst({ where: { id: creditor } });
     const source_currency = await dbcon.currency.findFirst({ where: { id: currencyAddress } });
 
-    if (target_wallet?.currencyId != source_currency?.id)
+    if (target_wallet == undefined)
+        return res.status(500).json({ message: 'Target wallet does not exist!' });
+
+    if (source_currency == undefined)
+        return res.status(500).json({ message: 'Source currency does not exist!' });
+
+    if (target_wallet.currencyId != source_currency.id)
         return res.status(401).json({ message: 'Currency ID mismatch!' });
 
-    if (!allowed) return res.status(401).json({ message: 'You are not authorised to issue a grant!' });
+    if (!allowed) 
+        return res.status(401).json({ message: 'You are not authorised to issue a grant!' });
+
+    if (source_currency.liquidity + ammount > source_currency.volume)
+        return res.status(401).json({ message: 'Grant would exceed volume limits' });
 
     try {
         const [transaction] = await dbcon.$transaction([
             dbcon.transaction.create({data:{
                 creditorId: creditor,
-                value: amount,
+                value: ammount,
                 status: TransactionStatus.PROCESSED,
-                debtorHeadline: 'Grant issued',
-                debtorDescription: message ?? 'Rawr x3 grant time'
+                debtorHeadline: `Grant from ${tokend.applicationId ?? 'Somebody'}`,
+                debtorDescription: message
             }}),
             dbcon.wallet.update({
                 where: {id: creditor},
-                data: {balance:{increment:amount}}
+                data: {balance:{increment:ammount}}
             }),
             dbcon.currency.update({
                 where: { id: currencyAddress },
-                data: { liquidity:{increment:amount} }
+                data: { liquidity:{increment:ammount} }
             })
         ]);
 
+        logger.info('Grant issued');
         return res.status(200).json({ message: 'Grant created!', transaction_id: transaction.id });
     } catch(e) {
-        // console.error('frick dude', e);
+        logger.error(e);
         return res.status(500).json({ message: 'UwU i messed up' });
     }
-
 });
 
 // Export the app :D
