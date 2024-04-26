@@ -153,7 +153,7 @@ currency_route.post('/:uuid/grant/', async (req, res) => {
         return res.status(401).json({ message: 'You are not authorised to issue a grant!' });
 
     if (source_currency.liquidity + ammount > source_currency.volume)
-        return res.status(4)
+        return res.status(401).json({ message: 'Grant would exceed volume limits' });
 
     try {
         const [transaction] = await dbcon.$transaction([
