@@ -11,6 +11,7 @@ import wallets_route from './wallets';
 import transaction_route from './transactions';
 import currency_route from './currency';
 import application_route from './applications';
+import assert_route from './assets';
 import { OptionalIdentificationMiddlewear } from '../middlewear/identitygate';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -46,5 +47,6 @@ api_route.use('/wallet/', wallets_route);
 api_route.use('/transaction/', transaction_route);
 api_route.use('/currency/', currency_route);
 api_route.use('/application/', application_route);
+api_route.use('/assets/', assert_route);
 
 export default api_route;
