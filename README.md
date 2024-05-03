@@ -1,16 +1,21 @@
-# OpenSimpleBank
-Welcome to **OpenSimpleBank**, a pet project of mine, inspired by an old project. 
+# Overview
+Welcome to the main repository for the **OpenSimpleBank** project, a simple micro-economy software I started working on for personal reasons.
+
+## Disclaimer
+This project has been created **just for fun**, I highly expect there to be security issues littered throughout the project - this is just meant for small communities.
+Please don't trust this with anything of value, and if you do, *you do so at your own risk*.
 
 ## Getting Started
-Currently, there isn't much to be done here. I'm *very* slowly working on the project at the moment for fun when the mood strikes. This is a TypeScript project, to be ran in NodeJS (or similar desktop enviroment, I suppose, but not tested!) with Prisma for the ORM. Shouldn't need any fancy setup besides the `.env` file with database information and such.
+The main thing you'll need to configure is the `.env` file which contains things such as database access information required by Prisma. I included an `.env.default` file which has a template layed out for configuring the application.
 
-The UI and such are mostly just there for my debugging, UI will be the last thing I end up doing, most likely.
+The first step, you need to spin up your database, namely, a Postgresql database (though this should be interchangable with other supported Prisma targets). 
+Next, run `npm run build:prisma` then `npm run push:prisma` to have your database configured to run.
+Now, run the application with `npm run start`. There you go!
 
-### Enviroment Configuration
-
-## Road Map
-So I'm roughtly planning out the project, to break it into managable chunks for myself. I'll be putting that information in the wiki then,
-but as for now, the project suports the most basic of functionality, I think...
+## License
+The license I choose is the GPL license, which you can view the information on [here](https://choosealicense.com/licenses/gpl-3.0/), but here's the gist.
+- You can't make close-sourced copies.
+That's pretty much it. Besides that, I'm not liable for anything that happens from using my code.
 
 ## Inspiration
 When playing games like Minecraft, I personally like to have some sort of economy in place to do trading with the other players. Now, I could be satisfied with just using diamonds or such, but that has obvious problems in of itself, so creating some currency in world is a usual good idea. I personally like using signed books, since it tells you when it is a counterfit! However, there's obvious issues with this - clunky, expensive IU, and who's to say anyone will trust you as banker. Then you'll have dozens of banks, with their own bills, which you *can't even stack*, so you'll need an inventory full of signed books!
