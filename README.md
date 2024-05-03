@@ -14,7 +14,9 @@ Now, run the application with `npm run start`. There you go!
 
 ## License
 The license I choose is the GPL license, which you can view the information on [here](https://choosealicense.com/licenses/gpl-3.0/), but here's the gist.
+
 - You can't make close-sourced copies.
+
 That's pretty much it. Besides that, I'm not liable for anything that happens from using my code.
 
 ## Inspiration
